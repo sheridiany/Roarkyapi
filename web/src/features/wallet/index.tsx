@@ -16,28 +16,25 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useNavigate } from '@tanstack/react-router'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { SectionPageLayout } from '@/components/layout'
+import { Main } from '@/components/layout'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { getSelf } from '@/lib/api'
+import { formatQuota } from '@/lib/format'
 
-import { AffiliateRewardsCard } from './components/affiliate-rewards-card'
-import { BillingHistoryDialog } from './components/dialogs/billing-history-dialog'
 import { CreemConfirmDialog } from './components/dialogs/creem-confirm-dialog'
 import { PaymentConfirmDialog } from './components/dialogs/payment-confirm-dialog'
-import { TransferDialog } from './components/dialogs/transfer-dialog'
+import { PaymentCheckoutPanel } from './components/payment-checkout-panel'
 import { RechargeFormCard } from './components/recharge-form-card'
-import { SubscriptionPlansCard } from './components/subscription-plans-card'
-import { WalletStatsCard } from './components/wallet-stats-card'
 import { DEFAULT_DISCOUNT_RATE, PAYMENT_TYPES } from './constants'
 import {
   useTopupInfo,
   usePayment,
-  useAffiliate,
-  useRedemption,
   useCreemPayment,
   useWaffoPayment,
   useWaffoPancakePayment,
@@ -61,6 +58,7 @@ interface WalletProps {
 
 export function Wallet(props: WalletProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [user, setUser] = useState<UserWalletData | null>(null)
   const [userLoading, setUserLoading] = useState(true)
   const [topupAmount, setTopupAmount] = useState(0)
@@ -72,13 +70,9 @@ export function Wallet(props: WalletProps) {
   >(null)
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
-  const [transferDialogOpen, setTransferDialogOpen] = useState(false)
-  const [billingDialogOpen, setBillingDialogOpen] = useState(false)
-  const [redemptionCode, setRedemptionCode] = useState('')
   const [creemDialogOpen, setCreemDialogOpen] = useState(false)
   const [selectedCreemProduct, setSelectedCreemProduct] =
     useState<CreemProduct | null>(null)
-  const [showSubscriptionPanel, setShowSubscriptionPanel] = useState(true)
 
   const { status } = useStatus()
   const { currency } = useSystemConfig()
@@ -94,16 +88,12 @@ export function Wallet(props: WalletProps) {
     amount: paymentAmount,
     calculating,
     processing,
+    checkout,
+    paymentError,
+    resetCheckout,
     calculatePaymentAmount,
     processPayment,
   } = usePayment()
-  const {
-    affiliateLink,
-    loading: affiliateLoading,
-    transferQuota,
-    transferring,
-  } = useAffiliate()
-  const { redeeming, redeemCode } = useRedemption()
   const { processing: creemProcessing, processCreemPayment } = useCreemPayment()
   const { processing: waffoProcessing, processWaffoPayment } = useWaffoPayment()
   const { processing: pancakeProcessing, processWaffoPancakePayment } =
@@ -131,10 +121,14 @@ export function Wallet(props: WalletProps) {
 
   useEffect(() => {
     if (props.initialShowHistory) {
-      setBillingDialogOpen(true)
-      window.history.replaceState({}, '', window.location.pathname)
+      void navigate({
+        to: '/usage-logs/$section',
+        params: { section: 'common' },
+        search: { activity: 'topup' },
+        replace: true,
+      })
     }
-  }, [props.initialShowHistory])
+  }, [props.initialShowHistory, navigate])
 
   // Initialize topup amount when topup info is loaded
   const topupAmountInitializedRef = useRef(false)
@@ -143,6 +137,8 @@ export function Wallet(props: WalletProps) {
       topupAmountInitializedRef.current = true
       const minTopup = getMinTopupAmount(topupInfo)
       setTopupAmount(minTopup)
+      setSelectedPreset(minTopup)
+      setSelectedPaymentMethod(topupInfo.pay_methods?.[0])
 
       // Calculate initial payment amount with default payment type
       const defaultPaymentType = getDefaultPaymentType(topupInfo)
@@ -182,9 +178,9 @@ export function Wallet(props: WalletProps) {
         return
       }
 
-      // Calculate payment amount and show confirmation dialog
+      // Refresh the amount shown in the adjacent order summary.
       await calculatePaymentAmount(topupAmount, method.type)
-      setConfirmDialogOpen(true)
+      // The order summary stays visible beside the amount selector.
     } finally {
       setPaymentLoading(null)
     }
@@ -207,28 +203,7 @@ export function Wallet(props: WalletProps) {
 
     if (success) {
       setConfirmDialogOpen(false)
-      await fetchUser()
     }
-  }
-
-  // Handle redemption
-  const handleRedeem = async () => {
-    if (!redemptionCode) return
-
-    const success = await redeemCode(redemptionCode)
-    if (success) {
-      setRedemptionCode('')
-      await fetchUser()
-    }
-  }
-
-  // Handle transfer
-  const handleTransfer = async (amount: number) => {
-    const success = await transferQuota(amount)
-    if (success) {
-      await fetchUser()
-    }
-    return success
   }
 
   // Handle Creem product selection
@@ -275,82 +250,103 @@ export function Wallet(props: WalletProps) {
     return topupInfo?.discount?.[topupAmount] || DEFAULT_DISCOUNT_RATE
   }, [topupInfo, topupAmount])
 
-  const handleSubscriptionAvailabilityChange = useCallback(
-    (available: boolean) => {
-      setShowSubscriptionPanel(available)
-    },
-    []
-  )
+  const paymentCurrency = selectedPaymentMethod?.type === 'stripe' ? '$' : '¥'
+  const formatCredit = (amount: number) =>
+    formatQuota(
+      currency?.quotaDisplayType === 'TOKENS'
+        ? amount
+        : amount * (currency?.quotaPerUnit ?? 500000)
+    )
 
   return (
     <>
-      <SectionPageLayout>
-        <SectionPageLayout.Title>{t('Wallet')}</SectionPageLayout.Title>
-        <SectionPageLayout.Content>
-          <div className='mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-5'>
-            <WalletStatsCard user={user} loading={userLoading} />
-
-            <div
-              className={
-                showSubscriptionPanel
-                  ? 'grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] xl:items-start'
-                  : 'grid gap-4'
-              }
-            >
-              <div id='wallet-add-funds' className='scroll-mt-4'>
-                <RechargeFormCard
-                  topupInfo={topupInfo}
-                  presetAmounts={presetAmounts}
-                  selectedPreset={selectedPreset}
-                  onSelectPreset={handleSelectPreset}
-                  topupAmount={topupAmount}
-                  onTopupAmountChange={handleTopupAmountChange}
-                  paymentAmount={paymentAmount}
-                  calculating={calculating}
-                  onPaymentMethodSelect={handlePaymentMethodSelect}
-                  paymentLoading={paymentLoading}
-                  redemptionCode={redemptionCode}
-                  onRedemptionCodeChange={setRedemptionCode}
-                  onRedeem={handleRedeem}
-                  redeeming={redeeming}
-                  topupLink={topupInfo?.topup_link}
-                  loading={topupLoading}
-                  priceRatio={(status?.price as number) || 1}
-                  usdExchangeRate={effectiveUsdExchangeRate}
-                  onOpenBilling={() => setBillingDialogOpen(true)}
-                  creemProducts={topupInfo?.creem_products}
-                  enableCreemTopup={topupInfo?.enable_creem_topup}
-                  onCreemProductSelect={handleCreemProductSelect}
-                  enableWaffoTopup={topupInfo?.enable_waffo_topup}
-                  waffoPayMethods={topupInfo?.waffo_pay_methods}
-                  waffoMinTopup={topupInfo?.waffo_min_topup}
-                  onWaffoMethodSelect={handleWaffoMethodSelect}
-                  enableWaffoPancakeTopup={
-                    topupInfo?.enable_waffo_pancake_topup
-                  }
-                />
+      <Main>
+        <div className='min-h-0 flex-1 overflow-auto px-4 py-7 sm:px-8 sm:py-9'>
+          <div className='gateway-wallet mx-auto w-full max-w-5xl'>
+            <header className='mb-8 flex flex-wrap items-end justify-between gap-6 border-b pb-6'>
+              <div>
+                <h1 className='text-2xl font-semibold tracking-tight'>
+                  {t('My Balance')}
+                </h1>
+                <p className='text-muted-foreground mt-2 text-sm'>
+                  {t('Top up your balance.')}
+                </p>
               </div>
-
-              <SubscriptionPlansCard
+              <div className='text-right'>
+                <p className='text-muted-foreground text-xs'>
+                  {t('Current Balance')}
+                </p>
+                {userLoading ? (
+                  <Skeleton className='mt-2 h-8 w-24' />
+                ) : (
+                  <p className='mt-1.5 font-mono text-3xl font-semibold tracking-tight tabular-nums'>
+                    {formatQuota(user?.quota || 0)}
+                  </p>
+                )}
+              </div>
+            </header>
+            <div className='grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-10'>
+              <RechargeFormCard
                 topupInfo={topupInfo}
-                onAvailabilityChange={handleSubscriptionAvailabilityChange}
-                userQuota={user?.quota}
-                onPurchaseSuccess={fetchUser}
+                selectedPaymentType={selectedPaymentMethod?.type}
+                locked={!!checkout || processing}
+                formatCredit={formatCredit}
+                paymentCurrency={paymentCurrency}
+                presetAmounts={presetAmounts}
+                selectedPreset={selectedPreset}
+                onSelectPreset={handleSelectPreset}
+                topupAmount={topupAmount}
+                onTopupAmountChange={handleTopupAmountChange}
+                paymentAmount={paymentAmount}
+                calculating={calculating}
+                onPaymentMethodSelect={handlePaymentMethodSelect}
+                paymentLoading={paymentLoading}
+                loading={topupLoading}
+                priceRatio={(status?.price as number) || 1}
+                usdExchangeRate={effectiveUsdExchangeRate}
+                creemProducts={topupInfo?.creem_products}
+                enableCreemTopup={topupInfo?.enable_creem_topup}
+                onCreemProductSelect={handleCreemProductSelect}
+                enableWaffoTopup={topupInfo?.enable_waffo_topup}
+                waffoPayMethods={topupInfo?.waffo_pay_methods}
+                waffoMinTopup={topupInfo?.waffo_min_topup}
+                onWaffoMethodSelect={handleWaffoMethodSelect}
+                enableWaffoPancakeTopup={topupInfo?.enable_waffo_pancake_topup}
               />
+              {(topupInfo?.enable_online_topup ||
+                topupInfo?.enable_stripe_topup ||
+                topupInfo?.enable_waffo_topup ||
+                topupInfo?.enable_waffo_pancake_topup) && (
+                <PaymentCheckoutPanel
+                  checkout={checkout}
+                  method={selectedPaymentMethod}
+                  amount={paymentAmount}
+                  credit={formatCredit(checkout?.amount ?? topupAmount)}
+                  currency={paymentCurrency}
+                  calculating={calculating}
+                  processing={
+                    processing || waffoProcessing || pancakeProcessing
+                  }
+                  disabled={
+                    !selectedPaymentMethod ||
+                    !Number.isSafeInteger(topupAmount) ||
+                    topupAmount <
+                      Math.max(
+                        getMinTopupAmount(topupInfo),
+                        selectedPaymentMethod?.min_topup ?? 0
+                      ) ||
+                    paymentAmount <= 0
+                  }
+                  error={paymentError}
+                  onPay={handlePaymentConfirm}
+                  onReset={resetCheckout}
+                  onPaid={fetchUser}
+                />
+              )}
             </div>
-
-            <AffiliateRewardsCard
-              user={user}
-              affiliateLink={affiliateLink}
-              onTransfer={() => setTransferDialogOpen(true)}
-              complianceConfirmed={
-                topupInfo?.payment_compliance_confirmed !== false
-              }
-              loading={affiliateLoading}
-            />
           </div>
-        </SectionPageLayout.Content>
-      </SectionPageLayout>
+        </div>
+      </Main>
 
       <PaymentConfirmDialog
         open={confirmDialogOpen}
@@ -363,19 +359,6 @@ export function Wallet(props: WalletProps) {
         processing={processing || waffoProcessing || pancakeProcessing}
         discountRate={getDiscountRate()}
         usdExchangeRate={effectiveUsdExchangeRate}
-      />
-
-      <TransferDialog
-        open={transferDialogOpen}
-        onOpenChange={setTransferDialogOpen}
-        onConfirm={handleTransfer}
-        availableQuota={user?.aff_quota ?? 0}
-        transferring={transferring}
-      />
-
-      <BillingHistoryDialog
-        open={billingDialogOpen}
-        onOpenChange={setBillingDialogOpen}
       />
 
       <CreemConfirmDialog

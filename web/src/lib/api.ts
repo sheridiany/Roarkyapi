@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { api } from '@/lib/http-client'
+import { isVisibleModel } from '@/lib/service-visibility'
 
 export {
   applyAuthBundle,
@@ -52,7 +53,12 @@ export async function getUserModels(): Promise<{
   data?: string[]
 }> {
   const res = await api.get('/api/user/models')
-  return res.data
+  return {
+    ...res.data,
+    data: res.data.data?.filter((model_name: string) =>
+      isVisibleModel({ model_name })
+    ),
+  }
 }
 
 export async function getUserGroups(): Promise<{

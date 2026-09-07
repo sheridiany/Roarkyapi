@@ -19,8 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import {
   Check,
   Copy,
-  Edit,
-  FileCode2,
   MoreHorizontal,
   RefreshCw,
   Trash2,
@@ -53,10 +51,7 @@ interface MessageActionsProps {
   message: Message
   onCopy?: (message: Message) => void
   onRegenerate?: (message: Message) => void
-  onToggleSource?: (message: Message) => void
-  onEdit?: (message: Message) => void
   onDelete?: (message: Message) => void
-  isSourceVisible?: boolean
   isGenerating?: boolean
   alwaysVisible?: boolean
   className?: string
@@ -75,10 +70,7 @@ export function MessageActions({
   message,
   onCopy,
   onRegenerate,
-  onToggleSource,
-  onEdit,
   onDelete,
-  isSourceVisible = false,
   isGenerating = false,
   alwaysVisible = false,
   className = '',
@@ -101,8 +93,6 @@ export function MessageActions({
   }
 
   const handleRegenerate = guardAction(() => onRegenerate?.(message))
-  const handleToggleSource = () => onToggleSource?.(message)
-  const handleEdit = guardAction(() => onEdit?.(message))
   const handleDelete = guardAction(() => onDelete?.(message))
 
   const visibilityClass = getMessageActionsVisibilityClass(alwaysVisible)
@@ -119,31 +109,12 @@ export function MessageActions({
     })
   }
 
-  if (isAssistant && hasContent && !isLoading && onToggleSource) {
-    actions.push({
-      icon: FileCode2,
-      label: isSourceVisible
-        ? MESSAGE_ACTION_LABELS.SHOW_PREVIEW
-        : MESSAGE_ACTION_LABELS.SHOW_SOURCE,
-      onClick: handleToggleSource,
-    })
-  }
-
   if ((isAssistant || isUser) && hasContent && !isLoading && onRegenerate) {
     actions.push({
       disabled: isGenerating,
       icon: RefreshCw,
       label: MESSAGE_ACTION_LABELS.REGENERATE,
       onClick: handleRegenerate,
-    })
-  }
-
-  if (hasContent && onEdit) {
-    actions.push({
-      disabled: isGenerating,
-      icon: Edit,
-      label: MESSAGE_ACTION_LABELS.EDIT,
-      onClick: handleEdit,
     })
   }
 

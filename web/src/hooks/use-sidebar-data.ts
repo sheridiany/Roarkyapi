@@ -16,16 +16,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useTranslation } from 'react-i18next'
+
+import type { SidebarData } from '@/components/layout/types'
 import {
   Activity,
   Box,
   CreditCard,
   FileText,
-  FlaskConical,
+  ModelTest,
   Key,
   LayoutDashboard,
   ListTodo,
-  MessageSquare,
   PlugZap,
   Radio,
   ServerCog,
@@ -34,11 +36,9 @@ import {
   User,
   Users,
   Wallet,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-
-import { type SidebarData } from '@/components/layout/types'
+} from '@/components/navigation-icons'
 import { ROLE } from '@/lib/roles'
+import { isServicePageVisible } from '@/lib/service-visibility'
 
 /**
  * Root navigation groups for the application sidebar.
@@ -52,34 +52,24 @@ export function useSidebarData(): SidebarData {
   return {
     navGroups: [
       {
-        id: 'chat',
-        title: t('Chat'),
-        items: [
-          {
-            title: t('Playground'),
-            url: '/playground',
-            icon: FlaskConical,
-          },
-          {
-            title: t('Chat'),
-            icon: MessageSquare,
-            type: 'chat-presets',
-          },
-        ],
-      },
-      {
         id: 'general',
         title: t('General'),
         items: [
           {
-            title: t('Overview'),
+            title: t('Data Analysis'),
             url: '/dashboard/overview',
             icon: Activity,
           },
           {
-            title: t('Dashboard'),
+            title: t('Data Dashboard'),
             url: '/dashboard/models',
+            requiredRole: ROLE.ADMIN,
             icon: LayoutDashboard,
+          },
+          {
+            title: t('Model Pricing'),
+            url: '/pricing',
+            icon: CreditCard,
           },
           {
             title: t('API Keys'),
@@ -105,9 +95,19 @@ export function useSidebarData(): SidebarData {
         title: t('Personal'),
         items: [
           {
-            title: t('Wallet'),
+            title: t('Subscription Plans'),
+            url: '/plans',
+            icon: Box,
+          },
+          {
+            title: t('My Balance'),
             url: '/wallet',
             icon: Wallet,
+          },
+          {
+            title: t('Model Testing'),
+            url: '/playground',
+            icon: ModelTest,
           },
           {
             title: t('Profile'),
@@ -134,6 +134,11 @@ export function useSidebarData(): SidebarData {
             title: t('Users'),
             url: '/users',
             icon: Users,
+          },
+          {
+            title: t('Registration invitations'),
+            url: '/registration-invitations',
+            icon: Ticket,
           },
           {
             title: t('Redemption Codes'),
@@ -165,6 +170,9 @@ export function useSidebarData(): SidebarData {
           },
         ],
       },
-    ],
+    ].map((group) => ({
+      ...group,
+      items: group.items.filter((item) => isServicePageVisible(item.url)),
+    })),
   }
 }

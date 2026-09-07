@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ChevronsUpDown, Check, CpuIcon, LayersIcon } from 'lucide-react'
+import { ChevronsUpDown, Check, Cpu as CpuIcon, Layers as LayersIcon } from '@/components/navigation-icons'
 /*
 Copyright (C) 2023-2026 QuantumNous
 

@@ -28,6 +28,7 @@ import {
   FormLabel,
 } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
+import { isSidebarServiceModuleVisible } from '@/lib/service-visibility'
 
 import {
   SettingsControlChildren,
@@ -65,10 +66,6 @@ export function SidebarModulesSection({
   const updateOption = useUpdateOption()
 
   const sectionMeta: Record<string, { title: string; description: string }> = {
-    chat: {
-      title: t('Chat area'),
-      description: t('Playground experiments and live conversations.'),
-    },
     console: {
       title: t('Console area'),
       description: t('Dashboards, tokens, and usage analytics.'),
@@ -87,16 +84,6 @@ export function SidebarModulesSection({
     string,
     Record<string, { title: string; description: string }>
   > = {
-    chat: {
-      playground: {
-        title: t('Playground'),
-        description: t('Experiment with prompts and models in real time.'),
-      },
-      chat: {
-        title: t('Chat'),
-        description: t('Access previous conversations and start new ones.'),
-      },
-    },
     console: {
       detail: {
         title: t('Dashboard'),
@@ -201,7 +188,9 @@ export function SidebarModulesSection({
               description: t('Custom sidebar section'),
             }
             const modules = Object.entries(sectionConfig).filter(
-              ([moduleKey]) => moduleKey !== 'enabled'
+              ([moduleKey]) =>
+                moduleKey !== 'enabled' &&
+                isSidebarServiceModuleVisible(sectionKey, moduleKey)
             )
 
             return (

@@ -43,3 +43,13 @@ export function getUserAvatarStyle(name: string): UserAvatarStyle {
 export function getUserAvatarFallback(name: string): string {
   return name.trim().charAt(0).toUpperCase() || '?'
 }
+
+/** Match Latin initials; assign other usernames a stable random-looking avatar. */
+export function getUserAvatarSrc(name: string): string {
+  const username = name.trim()
+  const initial = username.normalize('NFKD').charAt(0).toUpperCase()
+  const letter = /^[A-Z]$/.test(initial)
+    ? initial
+    : String.fromCharCode(65 + (hashString(username) % 26))
+  return `/avatars/riso/${letter}.webp`
+}

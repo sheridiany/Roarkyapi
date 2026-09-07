@@ -1,6 +1,7 @@
 package relayconvert
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/QuantumNous/new-api/relaykit/dto"
@@ -11,6 +12,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestClaudeConversionPreservesJSONSchema(t *testing.T) {
+	schema := json.RawMessage(`{"type":"object","properties":{"ok":{"type":"boolean"}},"required":["ok"],"additionalProperties":false}`)
+	format := json.RawMessage(`{"name":"verification","strict":true,"schema":` + string(schema) + `}`)
+	maxTokens := uint(4096)
+	for _, request := range []any{
+		&dto.GeneralOpenAIRequest{Model: "claude-opus-4-8", MaxTokens: &maxTokens, ReasoningEffort: "high", Messages: []dto.Message{{Role: "user", Content: "Return JSON."}}, ResponseFormat: &dto.ResponseFormat{Type: "json_schema", JsonSchema: format}},
+		&dto.OpenAIResponsesRequest{Model: "claude-opus-4-8", MaxOutputTokens: &maxTokens, Input: json.RawMessage(`"Return JSON."`), Reasoning: &dto.Reasoning{Effort: "high"}, Text: json.RawMessage(`{"format":{"type":"json_schema","name":"verification","strict":true,"schema":` + string(schema) + `}}`)},
+	} {
+		result, err := ConvertRequest(nil, &convmeta.Values{}, types.RelayFormatClaude, request)
+		require.NoError(t, err)
+		converted, ok := result.Value.(*dto.ClaudeRequest)
+		require.True(t, ok)
+		var config map[string]json.RawMessage
+		require.NoError(t, kitutil.Unmarshal(converted.OutputConfig, &config))
+		assert.JSONEq(t, `{"type":"json_schema","schema":`+string(schema)+`}`, string(config["format"]))
+		assert.JSONEq(t, `"high"`, string(config["effort"]))
+	}
+}
 
 func TestRequestConverterRegistryListsSupportedTextConverters(t *testing.T) {
 	tests := []struct {

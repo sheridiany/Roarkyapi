@@ -50,6 +50,7 @@ import { Button } from '@/components/ui/button'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
 import { combineBillingExpr } from '@/features/pricing/lib/billing-expr'
 import { useMediaQuery } from '@/hooks'
+import { isVisibleModel } from '@/lib/service-visibility'
 
 import { safeJsonParse } from '../utils/json-parser'
 import type { PricingMode } from './model-pricing-core'
@@ -241,6 +242,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
         : new Set([...savedByName.keys(), ...draftByName.keys()])
 
     return [...modelNames]
+      .filter((name) => isVisibleModel({ model_name: name }))
       .map((name) => {
         const saved = savedByName.get(name)
         const draft = draftByName.get(name)

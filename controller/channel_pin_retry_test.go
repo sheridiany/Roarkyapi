@@ -1,18 +1,33 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/QuantumNous/new-api/dto"
-	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestShouldRetryStopsAfterCancellationOrResponse(t *testing.T) {
+	upstreamErr := types.NewOpenAIError(errors.New("upstream"), types.ErrorCodeBadResponseStatusCode, http.StatusInternalServerError)
+	canceled := newPinRetryContext()
+	ctx, cancel := context.WithCancel(canceled.Request.Context())
+	cancel()
+	canceled.Request = canceled.Request.WithContext(ctx)
+	assert.False(t, shouldRetry(canceled, upstreamErr, 2))
+	started := newPinRetryContext()
+	_, err := started.Writer.WriteString("data: partial response\n\n")
+	require.NoError(t, err)
+	assert.False(t, shouldRetry(started, upstreamErr, 2))
+	assert.True(t, shouldRetry(newPinRetryContext(), upstreamErr, 2))
+}
 
 func TestShouldRetryHonorsPinRetryMode(t *testing.T) {
 	openaiErr := types.NewOpenAIError(errors.New("upstream"), types.ErrorCodeBadResponseStatusCode, http.StatusInternalServerError)

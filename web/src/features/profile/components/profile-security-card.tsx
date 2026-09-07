@@ -16,136 +16,168 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Shield, Key, Trash2 } from 'lucide-react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2 } from 'lucide-react'
+import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { IconBadge } from '@/components/ui/icon-badge'
+import { PasswordInput } from '@/components/password-input'
+import { Button } from '@/components/ui/button'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TitledCard } from '@/components/ui/titled-card'
-import { useDialogs } from '@/hooks/use-dialog'
 
+import { updateUserProfile } from '../api'
+import {
+  changePasswordSchema,
+  type ChangePasswordValues,
+} from '../lib/change-password-schema'
 import type { UserProfile } from '../types'
-import { AccessTokenDialog } from './dialogs/access-token-dialog'
-import { ChangePasswordDialog } from './dialogs/change-password-dialog'
-import { DeleteAccountDialog } from './dialogs/delete-account-dialog'
-
-// ============================================================================
-// Profile Security Card Component
-// ============================================================================
 
 interface ProfileSecurityCardProps {
   profile: UserProfile | null
   loading: boolean
 }
 
-type DialogKey = 'password' | 'token' | 'delete'
-
-export function ProfileSecurityCard({
-  profile,
-  loading,
-}: ProfileSecurityCardProps) {
+export function ProfileSecurityCard(props: ProfileSecurityCardProps) {
   const { t } = useTranslation()
-  const dialogs = useDialogs<DialogKey>()
+  const form = useForm<ChangePasswordValues>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: {
+      originalPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
+  })
+  const submitting = form.formState.isSubmitting
 
-  if (loading) {
-    return (
-      <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
-        <CardHeader className='border-b p-3 !pb-3 sm:p-5 sm:!pb-5'>
-          <Skeleton className='h-6 w-32' />
-          <Skeleton className='mt-2 h-4 w-48' />
-        </CardHeader>
-        <CardContent className='space-y-3 p-3 sm:p-5'>
-          {['password', 'token', 'delete'].map((key) => (
-            <Skeleton key={key} className='h-16 w-full' />
-          ))}
-        </CardContent>
-      </Card>
-    )
+  async function onSubmit(values: ChangePasswordValues) {
+    try {
+      const response = await updateUserProfile({
+        original_password: values.originalPassword,
+        password: values.newPassword,
+      })
+      if (!response.success) {
+        form.setError('root', {
+          message: response.message || t('Failed to change password'),
+        })
+        return
+      }
+      form.reset()
+      toast.success(t('Password changed successfully'))
+    } catch {
+      form.setError('root', { message: t('Failed to change password') })
+    }
   }
 
-  if (!profile) return null
-
-  const securityActions = [
-    {
-      icon: Shield,
-      title: t('Change Password'),
-      description: t('Update your password to keep your account secure'),
-      action: () => dialogs.open('password'),
-      variant: 'default' as const,
-    },
-    {
-      icon: Key,
-      title: t('Access Token'),
-      description: t('Generate and manage your API access token'),
-      action: () => dialogs.open('token'),
-      variant: 'default' as const,
-    },
-    {
-      icon: Trash2,
-      title: t('Delete Account'),
-      description: t('Permanently delete your account and all data'),
-      action: () => dialogs.open('delete'),
-      variant: 'destructive' as const,
-    },
-  ]
-
   return (
-    <>
-      <TitledCard
-        title={t('Security')}
-        description={t('Manage your security settings and account access')}
-        icon={<Shield className='h-4 w-4' />}
-        iconTone='success'
-        disableHoverEffect
-      >
-        <div className='grid grid-cols-1 gap-2.5 sm:gap-3 md:grid-cols-3'>
-          {securityActions.map((item) => (
-            <button
-              key={item.title}
-              type='button'
-              onClick={item.action}
-              className={`flex items-center gap-3 rounded-lg border p-3 text-left md:flex-col md:gap-2 md:p-4 md:text-center ${
-                item.variant === 'destructive' ? 'border-destructive/30' : ''
-              }`}
+    <TitledCard
+      title={t('Change Password')}
+      disableHoverEffect
+      headerClassName='!pb-0 sm:!pb-0'
+    >
+      {props.loading ? (
+        <Skeleton className='h-48 w-full' />
+      ) : (
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className='space-y-5'
+            noValidate
+          >
+            <input
+              type='text'
+              name='username'
+              autoComplete='username'
+              value={props.profile?.username || ''}
+              readOnly
+              hidden
+            />
+            <fieldset
+              disabled={submitting || !props.profile}
+              className='grid min-w-0 gap-5 sm:grid-cols-2'
             >
-              <IconBadge tone='neutral' size='sm'>
-                <item.icon />
-              </IconBadge>
-              <div className='min-w-0 md:contents'>
-                <p className='text-sm font-medium'>{item.title}</p>
-                <p className='text-muted-foreground line-clamp-1 text-xs md:line-clamp-none'>
-                  {item.description}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </TitledCard>
-
-      {/* Dialogs */}
-      <ChangePasswordDialog
-        open={dialogs.isOpen('password')}
-        onOpenChange={(open) =>
-          open ? dialogs.open('password') : dialogs.close('password')
-        }
-        username={profile.username}
-      />
-
-      <AccessTokenDialog
-        open={dialogs.isOpen('token')}
-        onOpenChange={(open) =>
-          open ? dialogs.open('token') : dialogs.close('token')
-        }
-      />
-
-      <DeleteAccountDialog
-        open={dialogs.isOpen('delete')}
-        onOpenChange={(open) =>
-          open ? dialogs.open('delete') : dialogs.close('delete')
-        }
-        username={profile.username}
-      />
-    </>
+              <FormField
+                control={form.control}
+                name='originalPassword'
+                render={({ field }) => (
+                  <FormItem className='sm:col-span-2 sm:max-w-[calc(50%-0.625rem)]'>
+                    <FormLabel>{t('Current Password')}</FormLabel>
+                    <FormControl>
+                      <PasswordInput
+                        {...field}
+                        className='h-10 [&_input]:h-10'
+                        autoComplete='current-password'
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='newPassword'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('New Password')}</FormLabel>
+                    <FormControl>
+                      <PasswordInput
+                        {...field}
+                        className='h-10 [&_input]:h-10'
+                        autoComplete='new-password'
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='confirmPassword'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Confirm New Password')}</FormLabel>
+                    <FormControl>
+                      <PasswordInput
+                        {...field}
+                        className='h-10 [&_input]:h-10'
+                        autoComplete='new-password'
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </fieldset>
+            {form.formState.errors.root && (
+              <p role='alert' className='text-destructive text-sm'>
+                {form.formState.errors.root.message}
+              </p>
+            )}
+            <div className='flex flex-wrap items-center justify-between gap-4 border-t pt-5'>
+              <p className='text-muted-foreground text-xs'>
+                {t('Password must be between 8 and 20 characters')}
+              </p>
+              <Button
+                type='submit'
+                disabled={submitting || !props.profile}
+                className='h-10 [&_input]:h-10'
+              >
+                {submitting && <Loader2 className='size-4 animate-spin' />}
+                {submitting ? t('Changing...') : t('Change Password')}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      )}
+    </TitledCard>
   )
 }

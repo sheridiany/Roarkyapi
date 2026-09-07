@@ -232,3 +232,37 @@ func TestGetTokenAutoGroupsReturnsFullFilteredGlobalOrderAndLimit(t *testing.T) 
 	assert.Equal(t, []string{"vip", "default"}, data.Groups)
 	assert.Equal(t, 1, data.MaxCount)
 }
+
+func TestAddTokenUsesConfiguredAutoDefaultWithoutOverridingExplicitGroup(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		enabled  bool
+		group    string
+		expected string
+	}{
+		{name: "enabled and omitted", enabled: true, expected: "auto"},
+		{name: "disabled and omitted", expected: ""},
+		{name: "explicit group preserved", enabled: true, group: "vip", expected: "vip"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			configureTokenAutoGroupsTest(t, "5", `["default","vip"]`)
+			user := setupTokenAutoGroupsControllerTest(t)
+			previous := setting.DefaultUseAutoGroup
+			setting.DefaultUseAutoGroup = test.enabled
+			t.Cleanup(func() { setting.DefaultUseAutoGroup = previous })
+			request := baseAutoTokenRequest("auto-default")
+			delete(request, "group")
+			if test.group != "" {
+				request["group"] = test.group
+			}
+			ctx, recorder := newTokenAutoGroupsAuthenticatedContext(t, http.MethodPost, "/api/token/", request, user.Id)
+			AddToken(ctx)
+			response := decodeAPIResponse(t, recorder)
+			require.True(t, response.Success, response.Message)
+			var token model.Token
+			require.NoError(t, model.DB.Where("user_id = ?", user.Id).First(&token).Error)
+			assert.Equal(t, test.expected, token.Group)
+			assert.Empty(t, token.AutoGroups)
+		})
+	}
+}

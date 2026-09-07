@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Tooltip,
   TooltipContent,
@@ -42,7 +43,6 @@ import { LOG_TYPE_ALL_VALUE, LOG_TYPE_FILTERS } from '../constants'
 import { buildSearchParams } from '../lib/filter'
 import { getDefaultTimeRange } from '../lib/utils'
 import type { CommonLogFilters } from '../types'
-import { CommonLogsStats } from './common-logs-stats'
 import { CompactDateTimeRangePicker } from './compact-date-time-range-picker'
 import {
   LogsFilterField,
@@ -185,20 +185,23 @@ export function CommonLogsFilterBar<TData>(
     [searchState]
   )
 
-  const handleApply = useCallback(() => {
-    const filterParams = buildSearchParams(filters, 'common')
-    navigate({
-      to: '/usage-logs/$section',
-      params: { section: 'common' },
-      search: {
-        ...filterParams,
-        type: [logType],
-        page: 1,
-      },
-    })
-    queryClient.invalidateQueries({ queryKey: ['logs'] })
-    queryClient.invalidateQueries({ queryKey: ['usage-logs-stats'] })
-  }, [filters, logType, navigate, queryClient])
+  const handleApply = useCallback(
+    (nextLogType = logType) => {
+      const filterParams = buildSearchParams(filters, 'common')
+      navigate({
+        to: '/usage-logs/$section',
+        params: { section: 'common' },
+        search: {
+          ...filterParams,
+          type: [nextLogType],
+          page: 1,
+        },
+      })
+      queryClient.invalidateQueries({ queryKey: ['logs'] })
+      queryClient.invalidateQueries({ queryKey: ['usage-logs-stats'] })
+    },
+    [filters, logType, navigate, queryClient]
+  )
 
   const handleReset = useCallback(() => {
     const { start, end } = getDefaultTimeRange()
@@ -234,6 +237,7 @@ export function CommonLogsFilterBar<TData>(
   )
 
   const hasExpandedFilters =
+    !!filters.group ||
     !!filters.token ||
     !!filters.username ||
     !!filters.channel ||
@@ -245,6 +249,7 @@ export function CommonLogsFilterBar<TData>(
     !!filters.model || !!filters.group || hasTypeFilter || hasExpandedFilters
 
   const expandedFilterCount = [
+    filters.group,
     filters.token,
     isAdmin ? filters.username : undefined,
     isAdmin ? filters.channel : undefined,
@@ -265,11 +270,6 @@ export function CommonLogsFilterBar<TData>(
   const logTypeLabel =
     logTypeItems.find((type) => type.value === logType)?.label ?? t('All Types')
 
-  const statsBar = (
-    <div className='flex flex-wrap items-center gap-2'>
-      <CommonLogsStats />
-    </div>
-  )
   const sensitiveToggle = (
     <Tooltip>
       <TooltipTrigger
@@ -294,6 +294,7 @@ export function CommonLogsFilterBar<TData>(
   const dateRangeFilter = (
     <LogsFilterField wide>
       <CompactDateTimeRangePicker
+        inline
         start={filters.startTime}
         end={filters.endTime}
         onChange={({ start, end }) => {
@@ -362,6 +363,7 @@ export function CommonLogsFilterBar<TData>(
   )
   const advancedFilters = (
     <>
+      {groupFilter}
       <LogsFilterField>
         <LogsFilterInput
           placeholder={t('Token Name')}
@@ -412,38 +414,50 @@ export function CommonLogsFilterBar<TData>(
   )
 
   return (
-    <LogsFilterToolbar
-      table={props.table}
-      stats={statsBar}
-      actionStart={sensitiveToggle}
-      primaryFilters={
-        <>
-          {dateRangeFilter}
-          {modelFilter}
-          {groupFilter}
-          {typeFilter}
-        </>
-      }
-      advancedFilters={advancedFilters}
-      mobilePinnedFilters={dateRangeFilter}
-      mobileFilters={
-        <>
-          {modelFilter}
-          {groupFilter}
-          {typeFilter}
-          {advancedFilters}
-        </>
-      }
-      mobileFilterCount={
-        [filters.model, filters.group, hasTypeFilter].filter(Boolean).length +
-        expandedFilterCount
-      }
-      hasAdvancedActiveFilters={hasExpandedFilters}
-      advancedFilterCount={expandedFilterCount}
-      hasActiveFilters={hasAdditionalFilters}
-      onSearch={handleApply}
-      searchLoading={fetchingLogs > 0}
-      onReset={handleReset}
-    />
+    <>
+      <LogsFilterToolbar
+        table={props.table}
+        actionStart={sensitiveToggle}
+        primaryFilters={
+          <>
+            {dateRangeFilter}
+            {modelFilter}
+            {typeFilter}
+          </>
+        }
+        advancedFilters={advancedFilters}
+        mobilePinnedFilters={dateRangeFilter}
+        mobileFilters={
+          <>
+            {modelFilter}
+            {typeFilter}
+            {advancedFilters}
+          </>
+        }
+        mobileFilterCount={
+          [filters.model, hasTypeFilter].filter(Boolean).length +
+          expandedFilterCount
+        }
+        hasAdvancedActiveFilters={hasExpandedFilters}
+        advancedFilterCount={expandedFilterCount}
+        hasActiveFilters={hasAdditionalFilters}
+        onSearch={() => handleApply()}
+        searchLoading={fetchingLogs > 0}
+        onReset={handleReset}
+      />
+      <Tabs
+        value={logType}
+        onValueChange={(value) => {
+          if (isLogTypeValue(value)) handleApply(value)
+        }}
+      >
+        <TabsList className='max-w-full justify-start'>
+          <TabsTrigger value='0'>{t('All')}</TabsTrigger>
+          <TabsTrigger value='2'>{t('API Calls')}</TabsTrigger>
+          <TabsTrigger value='5'>{t('Error')}</TabsTrigger>
+          <TabsTrigger value='1'>{t('Top-up')}</TabsTrigger>
+        </TabsList>
+      </Tabs>
+    </>
   )
 }

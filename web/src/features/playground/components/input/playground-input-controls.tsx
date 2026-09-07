@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { SendIcon, SquareIcon } from 'lucide-react'
+import { Send as SendIcon, Stop as SquareIcon } from '@/components/navigation-icons'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -86,7 +86,7 @@ export function PlaygroundInputControls({
         onClick={onStop}
         variant='secondary'
       >
-        <SquareIcon className='fill-current' size={16} />
+        <SquareIcon size={16} />
         <span className='hidden sm:inline'>{t('Stop')}</span>
         <span className='sr-only sm:hidden'>{t('Stop')}</span>
       </PromptInputButton>

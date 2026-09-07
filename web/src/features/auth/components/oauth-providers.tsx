@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { FcGoogle } from 'react-icons/fc'
 
 import {
   IconDiscord,
@@ -40,6 +41,8 @@ type OAuthProvidersProps = {
   onWeChatLogin?: () => void
   isWeChatLoading?: boolean
   redirectTo?: string
+  showDivider?: boolean
+  invitationCode?: string
 }
 
 type ProviderButton = {
@@ -57,6 +60,8 @@ export function OAuthProviders({
   onWeChatLogin,
   isWeChatLoading = false,
   redirectTo,
+  showDivider = true,
+  invitationCode,
 }: OAuthProvidersProps) {
   const { t } = useTranslation()
   const {
@@ -73,7 +78,7 @@ export function OAuthProviders({
     isTelegramPending,
     handleTelegramAuthorization,
     setIsTelegramDialogOpen,
-  } = useOAuthLogin(status, redirectTo)
+  } = useOAuthLogin(status, redirectTo, invitationCode)
 
   const providerButtons: ProviderButton[] = []
 
@@ -126,7 +131,7 @@ export function OAuthProviders({
     })
   }
 
-  if (status?.telegram_oauth) {
+  if (status?.telegram_oauth && !invitationCode) {
     providerButtons.push({
       key: 'telegram',
       label: t('Continue with Telegram'),
@@ -143,6 +148,10 @@ export function OAuthProviders({
         key: `custom-${provider.slug}`,
         label: t('Continue with {{name}}', { name: provider.name }),
         onClick: () => handleCustomOAuthLogin(provider),
+        icon:
+          provider.slug === 'google' ? (
+            <FcGoogle aria-hidden='true' className='size-5' />
+          ) : undefined,
       })
     }
   }
@@ -152,16 +161,18 @@ export function OAuthProviders({
   return (
     <>
       <div className={cn('space-y-3', className)}>
-        <div className='relative'>
-          <div className='absolute inset-0 flex items-center'>
-            <span className='w-full border-t' />
+        {showDivider && (
+          <div className='relative'>
+            <div className='absolute inset-0 flex items-center'>
+              <span className='w-full border-t' />
+            </div>
+            <div className='relative flex justify-center text-xs uppercase'>
+              <span className='bg-background text-muted-foreground px-2'>
+                {t('Or continue with')}
+              </span>
+            </div>
           </div>
-          <div className='relative flex justify-center text-xs uppercase'>
-            <span className='bg-background text-muted-foreground px-2'>
-              {t('Or continue with')}
-            </span>
-          </div>
-        </div>
+        )}
 
         <div className='flex flex-col gap-2'>
           {providerButtons.map(

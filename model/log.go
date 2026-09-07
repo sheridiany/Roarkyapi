@@ -557,12 +557,48 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 
 const logSearchCountLimit = 10000
 
-func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string, upstreamRequestId string) (logs []*Log, total int64, err error) {
+// UserLogFilter keeps user-facing request and funding filters consistent across
+// the paginated list and its aggregate statistics.
+type UserLogFilter struct {
+	APIOnly       bool
+	BillingSource string
+}
+
+func applyUserLogFilter(tx *gorm.DB, filters []UserLogFilter) (*gorm.DB, error) {
+	if len(filters) == 0 {
+		return tx, nil
+	}
+	filter := filters[0]
+	if filter.APIOnly {
+		tx = tx.Where("type IN ?", []int{LogTypeConsume, LogTypeError})
+	}
+	// Log metadata is serialized by LogOther.JSONString. Normalize whitespace
+	// for older serialized rows as well; REPLACE/COALESCE work on all SQL engines.
+	metadata := "REPLACE(REPLACE(REPLACE(COALESCE(other, ''), ' ', ''), ?, ''), ?, '')"
+	const subscription = `%"billing_source":"subscription"%`
+	switch filter.BillingSource {
+	case "", "all":
+	case "subscription":
+		tx = tx.Where(metadata+" LIKE ?", "\n", "\t", subscription)
+	case "wallet":
+		// Legacy requests without a funding source were charged to the wallet.
+		tx = tx.Where(metadata+" NOT LIKE ?", "\n", "\t", subscription)
+	default:
+		return nil, errors.New("invalid billing source")
+	}
+	return tx, nil
+}
+
+func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string, upstreamRequestId string, filters ...UserLogFilter) (logs []*Log, total int64, err error) {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB.Where("logs.user_id = ?", userId)
 	} else {
 		tx = LOG_DB.Where("logs.user_id = ? and logs.type = ?", userId, logType)
+	}
+
+	if tx, err = applyUserLogFilter(tx, filters); err != nil {
+		return nil, 0, err
 	}
 
 	if tx, err = applyExplicitLogTextFilter(tx, "logs.model_name", modelName); err != nil {
@@ -611,11 +647,18 @@ type Stat struct {
 	Tpm   int `json:"tpm"`
 }
 
-func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string) (stat Stat, err error) {
+func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string, filters ...UserLogFilter) (stat Stat, err error) {
 	tx := LOG_DB.Table("logs").Select("COALESCE(sum(quota), 0) quota")
 
 	// 为rpm和tpm创建单独的查询
 	rpmTpmQuery := LOG_DB.Table("logs").Select("count(*) rpm, COALESCE(sum(prompt_tokens), 0) + COALESCE(sum(completion_tokens), 0) tpm")
+
+	if tx, err = applyUserLogFilter(tx, filters); err != nil {
+		return stat, err
+	}
+	if rpmTpmQuery, err = applyUserLogFilter(rpmTpmQuery, filters); err != nil {
+		return stat, err
+	}
 
 	if tx, err = applyExplicitLogTextFilter(tx, "username", username); err != nil {
 		return stat, err

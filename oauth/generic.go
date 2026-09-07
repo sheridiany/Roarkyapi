@@ -285,7 +285,8 @@ func (p *GenericOAuthProvider) GetUserInfo(ctx context.Context, token *OAuthToke
 		DisplayName:    displayName,
 		Email:          email,
 		Extra: map[string]any{
-			"provider": p.config.Slug,
+			"provider":       p.config.Slug,
+			"email_verified": gjson.Get(bodyStr, "email_verified").Type == gjson.True,
 		},
 	}, nil
 }

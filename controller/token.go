@@ -310,6 +310,9 @@ func AddToken(c *gin.Context) {
 		})
 		return
 	}
+	if token.Group == "" && setting.DefaultUseAutoGroup {
+		token.Group = "auto"
+	}
 	if token.Group == "auto" {
 		if !setTokenAutoGroups(c, &token, request.AutoGroups.Groups) {
 			return

@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { getGroups as getUserGroups } from '@/features/users/api'
 import { api, type ApiRequestConfig } from '@/lib/api'
+import { isVisibleModel } from '@/lib/service-visibility'
 
 import type {
   AddChannelRequest,
@@ -601,7 +602,12 @@ export async function getAllModels(): Promise<{
   data?: Array<{ id: string; [key: string]: unknown }>
 }> {
   const res = await api.get('/api/channel/models')
-  return res.data
+  return {
+    ...res.data,
+    data: res.data.data?.filter((model: { id: string }) =>
+      isVisibleModel({ model_name: model.id })
+    ),
+  }
 }
 
 /**
@@ -613,7 +619,12 @@ export async function getEnabledModels(): Promise<{
   data?: string[]
 }> {
   const res = await api.get('/api/channel/models_enabled')
-  return res.data
+  return {
+    ...res.data,
+    data: res.data.data?.filter((model_name: string) =>
+      isVisibleModel({ model_name })
+    ),
+  }
 }
 
 // ============================================================================

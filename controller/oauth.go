@@ -20,13 +20,15 @@ import (
 const oauthAuthFlowTTL = 10 * time.Minute
 
 type oauthStateRequest struct {
-	Provider string `json:"provider"`
-	Intent   string `json:"intent"`
-	Aff      string `json:"aff,omitempty"`
+	Provider       string `json:"provider"`
+	Intent         string `json:"intent"`
+	Aff            string `json:"aff,omitempty"`
+	InvitationCode string `json:"invitation_code,omitempty"`
 }
 
 type oauthFlowPayload struct {
 	AffiliateCode string `json:"affiliate_code,omitempty"`
+	InvitationID  int    `json:"invitation_id,omitempty"`
 }
 
 // providerParams returns map with Provider key for i18n templates
@@ -47,7 +49,7 @@ func GenerateOAuthCode(c *gin.Context) {
 	if oauth.GetProvider(request.Provider) == nil ||
 		(request.Intent != model.AuthFlowIntentLogin && request.Intent != model.AuthFlowIntentBind) ||
 		len(request.Aff) > 32 ||
-		(request.Intent == model.AuthFlowIntentBind && request.Aff != "") {
+		(request.Intent == model.AuthFlowIntentBind && (request.Aff != "" || request.InvitationCode != "")) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
@@ -62,7 +64,16 @@ func GenerateOAuthCode(c *gin.Context) {
 		userID = identity.UserID
 		sessionID = identity.SessionID
 	}
-	payload, err := common.Marshal(oauthFlowPayload{AffiliateCode: request.Aff})
+	invitationID := 0
+	if request.InvitationCode != "" {
+		var err error
+		invitationID, err = model.GetRegistrationInvitationID(request.InvitationCode)
+		if err != nil {
+			common.ApiErrorI18n(c, "user.invitation_invalid")
+			return
+		}
+	}
+	payload, err := common.Marshal(oauthFlowPayload{AffiliateCode: request.Aff, InvitationID: invitationID})
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -194,6 +205,10 @@ func HandleOAuth(c *gin.Context) {
 		return
 	}
 	user, err := findOrCreateOAuthUser(c, provider, oauthUser, payload.AffiliateCode)
+	if errors.Is(err, errOAuthInvitationRequired) {
+		beginInvitedOAuthRegistration(c, providerName, provider, oauthUser, payload)
+		return
+	}
 	if err != nil {
 		if errors.Is(err, model.ErrEmailAlreadyTaken) {
 			common.ApiErrorI18n(c, i18n.MsgUserEmailAlreadyTaken)
@@ -288,8 +303,8 @@ func handleOAuthBind(c *gin.Context, provider oauth.Provider, pendingFlow *model
 	})
 }
 
-// findOrCreateOAuthUser finds existing user or creates new user
-func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *oauth.OAuthUser, affiliateCode string) (*model.User, error) {
+// findOAuthUser resolves only linked identities; email never implicitly links accounts.
+func findOAuthUser(provider oauth.Provider, oauthUser *oauth.OAuthUser) (*model.User, error) {
 	user := &model.User{}
 
 	// Check if user already exists with new ID
@@ -325,11 +340,25 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		}
 	}
 
-	// User doesn't exist, create new user if registration is enabled
+	return nil, gorm.ErrRecordNotFound
+}
+
+func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *oauth.OAuthUser, affiliateCode string) (*model.User, error) {
+	user, err := findOAuthUser(provider, oauthUser)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return user, err
+	}
 	if !common.RegisterEnabled {
 		return nil, &OAuthRegistrationDisabledError{}
 	}
+	if common.InvitationOnlyEnabled {
+		return nil, errOAuthInvitationRequired
+	}
+	return createOAuthUser(provider, oauthUser, affiliateCode, nil)
+}
 
+func createOAuthUser(provider oauth.Provider, oauthUser *oauth.OAuthUser, affiliateCode string, registration *oauthInvitationRegistration) (*model.User, error) {
+	user := &model.User{}
 	// Set up new user
 	user.Username = provider.GetProviderPrefix() + strconv.Itoa(model.GetMaxUserId()+1)
 
@@ -367,64 +396,35 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		inviterId, _ = model.GetUserIdByAffCode(affiliateCode)
 	}
 
-	// Use transaction to ensure user creation and OAuth binding are atomic
-	if genericProvider, ok := provider.(*oauth.GenericOAuthProvider); ok {
-		// Custom provider: create user and binding in a transaction
-		err := model.DB.Transaction(func(tx *gorm.DB) error {
-			// Create user
-			if err := user.InsertWithTx(tx, inviterId); err != nil {
-				return err
-			}
-
-			// Create OAuth binding
-			binding := &model.UserOAuthBinding{
-				UserId:         user.Id,
-				ProviderId:     genericProvider.GetProviderId(),
-				ProviderUserId: oauthUser.ProviderUserID,
-			}
-			if err := model.CreateUserOAuthBindingWithTx(tx, binding); err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			return nil, err
+	create := func(tx *gorm.DB) error {
+		var err error
+		if registration != nil {
+			err = user.InsertWithRegistrationInvitationTx(tx, registration.InvitationID, inviterId)
+		} else {
+			err = user.InsertWithTx(tx, inviterId)
 		}
-
-		// Perform post-transaction tasks (logs, sidebar config, inviter rewards)
-		user.FinalizeOAuthUserCreation(inviterId)
-	} else {
-		// Built-in provider: create user and update provider ID in a transaction
-		err := model.DB.Transaction(func(tx *gorm.DB) error {
-			// Create user
-			if err := user.InsertWithTx(tx, inviterId); err != nil {
-				return err
-			}
-
-			// Set the provider user ID on the user model and update
-			provider.SetProviderUserID(user, oauthUser.ProviderUserID)
-			if err := tx.Model(user).Updates(map[string]interface{}{
-				"github_id":   user.GitHubId,
-				"discord_id":  user.DiscordId,
-				"oidc_id":     user.OidcId,
-				"linux_do_id": user.LinuxDOId,
-				"wechat_id":   user.WeChatId,
-				"telegram_id": user.TelegramId,
-			}).Error; err != nil {
-				return err
-			}
-
-			return nil
-		})
 		if err != nil {
-			return nil, err
+			return err
 		}
-
-		// Perform post-transaction tasks
-		user.FinalizeOAuthUserCreation(inviterId)
+		if generic, ok := provider.(*oauth.GenericOAuthProvider); ok {
+			return model.CreateUserOAuthBindingWithTx(tx, &model.UserOAuthBinding{UserId: user.Id, ProviderId: generic.GetProviderId(), ProviderUserId: oauthUser.ProviderUserID})
+		}
+		provider.SetProviderUserID(user, oauthUser.ProviderUserID)
+		return tx.Model(user).Updates(map[string]interface{}{
+			"github_id": user.GitHubId, "discord_id": user.DiscordId, "oidc_id": user.OidcId,
+			"linux_do_id": user.LinuxDOId, "wechat_id": user.WeChatId, "telegram_id": user.TelegramId,
+		}).Error
 	}
-
+	var err error
+	if registration != nil {
+		_, err = model.ConsumeAuthFlowWithAction(registration.FlowToken, model.AuthFlowMatch{Purpose: model.AuthFlowPurposeOAuthRegistration, Provider: registration.Provider, Intent: model.AuthFlowIntentLogin}, func(tx *gorm.DB, flow *model.AuthFlow) error { return create(tx) })
+	} else {
+		err = model.DB.Transaction(create)
+	}
+	if err != nil {
+		return nil, err
+	}
+	user.FinalizeOAuthUserCreation(inviterId)
 	return user, nil
 }
 
@@ -450,6 +450,12 @@ func (e *OAuthEmailAlreadyTakenError) Error() string {
 // handleOAuthError handles OAuth errors and returns translated message
 func handleOAuthError(c *gin.Context, err error) {
 	switch e := err.(type) {
+	case *OAuthRegistrationDisabledError:
+		common.ApiErrorI18n(c, i18n.MsgUserRegisterDisabled)
+	case *OAuthEmailAlreadyTakenError:
+		common.ApiErrorI18n(c, i18n.MsgUserEmailAlreadyTaken)
+	case *OAuthUserDeletedError:
+		common.ApiErrorI18n(c, i18n.MsgOAuthUserDeleted)
 	case *oauth.OAuthError:
 		if e.Params != nil {
 			common.ApiErrorI18n(c, e.MsgKey, e.Params)

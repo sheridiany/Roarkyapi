@@ -92,6 +92,9 @@ func OpenAIChatRequestToClaudeMessages(c context.Context, info convmeta.Meta, te
 			claudeRequest.ToolChoice = claudeToolChoice
 		}
 	}
+	if err := sharedclaude.ApplyOpenAIJSONSchema(&claudeRequest, textRequest.ResponseFormat); err != nil {
+		return nil, err
+	}
 
 	sourceReasoning, err := reasoning.FromOpenAIChat(&textRequest)
 	if err != nil {

@@ -24,8 +24,9 @@ import { useTranslation } from 'react-i18next'
 import { DataTablePage, useDataTable } from '@/components/data-table'
 import { useMediaQuery } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
+import { isVisibleVendor } from '@/lib/service-visibility'
 
-import { getModels, searchModels, getVendors } from '../api'
+import { getVisibleModelCatalog, getVendors } from '../api'
 import {
   DEFAULT_PAGE_SIZE,
   getModelStatusOptions,
@@ -88,10 +89,12 @@ export function ModelsTable() {
   )
 
   const vendorOptions = useMemo(() => {
-    return vendors.map((v) => ({
-      label: v.name,
-      value: String(v.id),
-    }))
+    return vendors
+      .filter((vendor) => isVisibleVendor(vendor.name))
+      .map((v) => ({
+        label: v.name,
+        value: String(v.id),
+      }))
   }, [vendors])
 
   // Apply selected vendor from context or filter
@@ -110,46 +113,42 @@ export function ModelsTable() {
       ? syncFilter[0]
       : undefined
 
-  // Use search API whenever any filter is active so status/sync are applied server-side
-  const shouldSearch = Boolean(
-    globalFilter?.trim() ||
-    activeVendorFilter ||
-    statusFilterValue ||
-    syncFilterValue
-  )
-
-  // Fetch models data
-  // eslint-disable-next-line @tanstack/query/exhaustive-deps
-  const { data, isLoading, isFetching } = useQuery({
-    queryKey: modelsQueryKeys.list({
-      keyword: globalFilter,
-      vendor: activeVendorFilter,
-      status: statusFilterValue,
-      sync_official: syncFilterValue,
-      p: pagination.pageIndex + 1,
-      page_size: pagination.pageSize,
-    }),
-    queryFn: async () => {
-      if (shouldSearch) {
-        return searchModels({
+  const {
+    data: models = [],
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: [
+      ...modelsQueryKeys.list({
+        keyword: globalFilter,
+        vendor: activeVendorFilter,
+        status: statusFilterValue,
+        sync_official: syncFilterValue,
+      }),
+      'visible-services',
+      vendors.map((vendor) => `${vendor.id}:${vendor.name}`),
+    ],
+    queryFn: () =>
+      getVisibleModelCatalog(
+        {
           keyword: globalFilter,
           vendor: activeVendorFilter,
           status: statusFilterValue,
           sync_official: syncFilterValue,
-          p: pagination.pageIndex + 1,
-          page_size: pagination.pageSize,
-        })
-      }
-      return getModels({
-        p: pagination.pageIndex + 1,
-        page_size: pagination.pageSize,
-      })
-    },
+        },
+        vendors
+      ),
+    enabled: Boolean(vendorsData?.success),
   })
-
-  const models = data?.data?.items || []
-  const totalCount = data?.data?.total || 0
-  const vendorCounts = data?.data?.vendor_counts
+  const totalCount = models.length
+  const vendorCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: models.length }
+    for (const model of models) {
+      const key = String(model.vendor_id ?? 0)
+      counts[key] = (counts[key] ?? 0) + 1
+    }
+    return counts
+  }, [models])
 
   // Columns configuration
   const columns = useModelsColumns(vendors)
@@ -171,7 +170,7 @@ export function ModelsTable() {
     onColumnFiltersChange,
     onPaginationChange,
     onGlobalFilterChange,
-    manualPagination: true,
+    manualPagination: false,
     manualFiltering: true,
     ensurePageInRange,
   })

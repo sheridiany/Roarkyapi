@@ -19,6 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 import type { TFunction } from 'i18next'
 import type { ReactNode } from 'react'
 
+import { isServicePageVisible } from '@/lib/service-visibility'
+
 /**
  * Section definition for settings pages
  */
@@ -51,7 +53,10 @@ export function createSectionRegistry<
   TSettings,
   TExtraArgs extends unknown[] = [],
 >(config: SectionRegistryConfig<TSectionId, TSettings, TExtraArgs>) {
-  const { sections, defaultSection, basePath, urlStyle = 'query' } = config
+  const { defaultSection, basePath, urlStyle = 'query' } = config
+  const sections = config.sections.filter((section) =>
+    isServicePageVisible(`${basePath}/${section.id}`)
+  )
 
   type SectionId = TSectionId
 

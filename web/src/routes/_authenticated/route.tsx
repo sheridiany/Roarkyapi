@@ -16,14 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute, redirect, notFound } from '@tanstack/react-router'
 
 import { AuthenticatedLayout } from '@/components/layout'
 import { resolveAuthentication } from '@/lib/auth-session'
+import { isServicePageVisible } from '@/lib/service-visibility'
 import { useAuthStore } from '@/stores/auth-store'
 
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: async ({ location }) => {
+    if (!isServicePageVisible(location.pathname)) throw notFound()
     // The root guard may have skipped its refresh because no session hint was
     // present. That skip is an optimization for public pages and must not
     // decide a protected route, so resolve against the server before

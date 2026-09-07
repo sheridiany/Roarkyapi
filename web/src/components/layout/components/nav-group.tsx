@@ -17,9 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Link, useLocation } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
 import { type ReactNode, useState, useEffect } from 'react'
 
+import { ChevronRight } from '@/components/navigation-icons'
 import { Badge } from '@/components/ui/badge'
 import {
   Collapsible,
@@ -50,11 +50,9 @@ import {
 import { checkIsActive } from '../lib/url-utils'
 import type {
   NavCollapsible,
-  NavChatPresets,
   NavLink,
   NavGroup as NavGroupProps,
 } from '../types'
-import { ChatPresetsItem } from './chat-presets-item'
 
 /**
  * Sidebar navigation group component
@@ -72,11 +70,6 @@ export function NavGroup({ title, items }: NavGroupProps) {
       <SidebarMenu>
         {items.map((item) => {
           const key = `${item.title}-${item.url || item.type}`
-
-          // Special handling: dynamic chat presets list
-          if (item.type === 'chat-presets') {
-            return <ChatPresetsItem key={key} item={item as NavChatPresets} />
-          }
 
           // If no sub-items, render regular link
           if (!item.items) {

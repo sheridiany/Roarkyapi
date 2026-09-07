@@ -127,6 +127,7 @@ func GetTopUpInfo(c *gin.Context) {
 type EpayRequest struct {
 	Amount        int64  `json:"amount"`
 	PaymentMethod string `json:"payment_method"`
+	InlineQR      bool   `json:"inline_qr"`
 }
 
 type AmountRequest struct {
@@ -300,7 +301,7 @@ func RequestEpay(c *gin.Context) {
 	}
 
 	callBackAddress := service.GetCallbackAddress()
-	returnUrl, _ := url.Parse(paymentReturnPath("/usage-logs"))
+	returnUrl, _ := url.Parse(paymentReturnPath("/wallet"))
 	notifyUrl, _ := url.Parse(callBackAddress + "/api/user/epay/notify")
 	tradeNo := fmt.Sprintf("%s%d", common.GetRandomString(6), time.Now().Unix())
 	tradeNo = fmt.Sprintf("USR%dNO%s", id, tradeNo)
@@ -312,7 +313,7 @@ func RequestEpay(c *gin.Context) {
 	uri, params, err := client.Purchase(&epay.PurchaseArgs{
 		Type:           req.PaymentMethod,
 		ServiceTradeNo: tradeNo,
-		Name:           fmt.Sprintf("TUC%d", req.Amount),
+		Name:           fmt.Sprintf("%s API credits %d", common.SystemName, req.Amount),
 		Money:          strconv.FormatFloat(payMoney, 'f', 2, 64),
 		Device:         epay.PC,
 		NotifyUrl:      notifyUrl,
@@ -345,7 +346,22 @@ func RequestEpay(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "创建订单失败"})
 		return
 	}
-	logger.LogInfo(c.Request.Context(), fmt.Sprintf("易支付 充值订单创建成功 user_id=%d trade_no=%s payment_method=%s amount=%d money=%.2f uri=%q params=%q", id, tradeNo, req.PaymentMethod, req.Amount, payMoney, uri, common.GetJsonString(params)))
+	if req.InlineQR {
+		qr, qrErr := requestEpayQRCode(c.Request.Context(), uri, params, operation_setting.EpayKey, c.ClientIP())
+		if qrErr != nil {
+			// Keep the pending order: a gateway timeout does not prove that the
+			// order was rejected, and a late signed notification must still settle it.
+			logger.LogError(c.Request.Context(), fmt.Sprintf("易支付 二维码获取失败 user_id=%d trade_no=%s error=%q", id, tradeNo, qrErr.Error()))
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "暂时无法获取付款二维码，请稍后重试"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "success", "checkout": gin.H{
+			"trade_no": tradeNo, "amount": req.Amount, "money": payMoney,
+			"payment_method": req.PaymentMethod, "qrcode": qr.URL, "qr_image": qr.Image,
+		}})
+		return
+	}
+	logger.LogInfo(c.Request.Context(), fmt.Sprintf("易支付 充值订单创建成功 user_id=%d trade_no=%s payment_method=%s amount=%d money=%.2f", id, tradeNo, req.PaymentMethod, req.Amount, payMoney))
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": params, "url": uri})
 }
 

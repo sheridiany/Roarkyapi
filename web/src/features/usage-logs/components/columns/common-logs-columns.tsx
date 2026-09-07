@@ -17,13 +17,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { ColumnDef } from '@tanstack/react-table'
-import { GitBranch, Sparkles, KeyRound } from 'lucide-react'
+import { GitBranch, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { GroupBadge } from '@/components/group-badge'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Popover,
   PopoverContent,
@@ -35,7 +33,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
+import { UserAvatar } from '@/components/user-avatar'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { formatLogQuota, formatTimestampToDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -326,7 +324,7 @@ export function useCommonLogsColumns(
         return value.includes(String(row.original.type))
       },
       enableHiding: false,
-      size: 180,
+      size: 175,
     },
   ]
 
@@ -510,21 +508,11 @@ export function useCommonLogsColumns(
                 setUserInfoDialogOpen(true)
               }}
             >
-              <Avatar className='ring-border/60 size-6 ring-1 max-sm:hidden'>
-                <AvatarFallback
-                  className={cn(
-                    'text-[11px] font-semibold',
-                    !sensitiveVisible && 'bg-muted text-muted-foreground'
-                  )}
-                  style={
-                    sensitiveVisible
-                      ? getUserAvatarStyle(log.username)
-                      : undefined
-                  }
-                >
-                  {sensitiveVisible ? getUserAvatarFallback(log.username) : '•'}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                name={log.username}
+                masked={!sensitiveVisible}
+                className='size-6 shrink-0 max-sm:hidden'
+              />
               <TooltipProvider delay={300}>
                 <Tooltip>
                   <TooltipTrigger
@@ -551,62 +539,13 @@ export function useCommonLogsColumns(
     header: t('Token'),
     cell: function TokenNameCell({ row }) {
       const { sensitiveVisible } = useUsageLogsContext()
-      const log = row.original
-      if (!isDisplayableLogType(log.type)) return null
-
-      const tokenName = log.token_name
-      if (!tokenName) return null
-
-      const other = parseLogOther(log.other)
-      const displayName = sensitiveVisible ? tokenName : '••••'
-      let group = log.group
-      if (!group) group = other?.group || ''
-      const groupRatio = getGroupRatio(other)
-
       return (
-        <div className='flex max-w-[200px] flex-col gap-0.5'>
-          <TooltipProvider delay={300}>
-            <Tooltip>
-              <TooltipTrigger render={<div className='max-w-full' />}>
-                <StatusBadge
-                  label={displayName}
-                  icon={KeyRound}
-                  copyText={sensitiveVisible ? tokenName : undefined}
-                  size='sm'
-                  showDot={false}
-                  className='border-border/60 bg-muted/30 text-foreground h-6 max-w-full gap-1.5 overflow-hidden rounded-md border px-2 py-0.5 [font-family:var(--font-body)]'
-                />
-              </TooltipTrigger>
-              {sensitiveVisible && tokenName.length > 16 && (
-                <TooltipContent side='top' className='max-w-xs break-all'>
-                  {tokenName}
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-          {(group || groupRatio != null) && (
-            <span className='block max-w-full truncate text-xs leading-none'>
-              {group ? (
-                <GroupBadge
-                  group={group}
-                  label={sensitiveVisible ? undefined : '••••'}
-                  type='text'
-                  size='sm'
-                  className='inline align-baseline text-xs leading-none [&>span]:leading-none'
-                />
-              ) : null}
-              {group && groupRatio != null ? ' ' : null}
-              {groupRatio != null ? (
-                <span className='text-muted-foreground/60 relative top-px align-baseline tabular-nums'>
-                  {formatRatioCompact(groupRatio)}x
-                </span>
-              ) : null}
-            </span>
-          )}
-        </div>
+        <span className='text-muted-foreground'>
+          {sensitiveVisible ? row.original.token_name || '—' : '••••'}
+        </span>
       )
     },
-    size: 160,
+    size: 140,
   })
   columns.push(
     {
@@ -655,51 +594,96 @@ export function useCommonLogsColumns(
       meta: { label: t('Stream') },
     },
     {
-      accessorKey: 'prompt_tokens',
-      header: 'Tokens',
+      id: 'billing_source',
+      header: t('Billing'),
       cell: ({ row }) => {
-        const log = row.original
-        if (!isDisplayableLogType(log.type)) return null
-
-        const other = parseLogOther(log.other)
-
-        const promptTokens = log.prompt_tokens || 0
-        const completionTokens = log.completion_tokens || 0
-        if (promptTokens === 0 && completionTokens === 0) {
-          return <span className='text-muted-foreground text-xs'>-</span>
-        }
-
-        const cacheReadTokens = other?.cache_tokens || 0
-        const cacheWrite5m = other?.cache_creation_tokens_5m || 0
-        const cacheWrite1h = other?.cache_creation_tokens_1h || 0
-        const hasSplitCache = cacheWrite5m > 0 || cacheWrite1h > 0
-        const cacheWriteTokens = hasSplitCache
-          ? cacheWrite5m + cacheWrite1h
-          : other?.cache_creation_tokens || 0
-
+        if (!isDisplayableLogType(row.original.type)) return '—'
+        const other = parseLogOther(row.original.other)
         return (
-          <div className='flex flex-col gap-0.5'>
-            <span className='font-mono text-xs font-medium tabular-nums'>
-              {promptTokens.toLocaleString()} /{' '}
-              {completionTokens.toLocaleString()}
-            </span>
-            {(cacheReadTokens > 0 || cacheWriteTokens > 0) && (
-              <div className='flex items-center gap-1 text-[11px]'>
-                {cacheReadTokens > 0 && (
-                  <span className='text-muted-foreground/60'>
-                    {t('Cache')}↓ {cacheReadTokens.toLocaleString()}
-                  </span>
-                )}
-                {cacheWriteTokens > 0 && (
-                  <span className='text-muted-foreground/60'>
-                    ↑ {cacheWriteTokens.toLocaleString()}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+          <span className='text-muted-foreground text-xs'>
+            {other?.billing_source === 'subscription'
+              ? t('Subscription')
+              : t('Wallet')}
+          </span>
         )
       },
+      size: 90,
+    },
+    {
+      accessorKey: 'group',
+      header: t('Group'),
+      cell: function GroupCell({ row }) {
+        const { sensitiveVisible } = useUsageLogsContext()
+        if (!sensitiveVisible) return '••••'
+        const other = parseLogOther(row.original.other)
+        const ratio = getGroupRatio(other)
+        return (
+          <span className='text-muted-foreground whitespace-nowrap'>
+            {row.original.group || other?.group || '—'}
+            {ratio != null && (
+              <span className='ml-1'>({formatRatioCompact(ratio)}x)</span>
+            )}
+          </span>
+        )
+      },
+      size: 160,
+    },
+    {
+      accessorKey: 'prompt_tokens',
+      header: t('Input'),
+      cell: ({ row }) =>
+        isDisplayableLogType(row.original.type) ? (
+          <span className='font-mono tabular-nums'>
+            {row.original.prompt_tokens.toLocaleString()}
+          </span>
+        ) : (
+          '—'
+        ),
+      size: 90,
+    },
+    {
+      accessorKey: 'completion_tokens',
+      header: t('Output'),
+      cell: ({ row }) =>
+        isDisplayableLogType(row.original.type) ? (
+          <span className='font-mono tabular-nums'>
+            {row.original.completion_tokens.toLocaleString()}
+          </span>
+        ) : (
+          '—'
+        ),
+      size: 90,
+    },
+    {
+      id: 'cache_read',
+      header: t('Cache Read'),
+      cell: ({ row }) => {
+        if (!isDisplayableLogType(row.original.type)) return '—'
+        const other = parseLogOther(row.original.other)
+        return (
+          <span className='text-muted-foreground font-mono tabular-nums'>
+            {(other?.cache_tokens || 0).toLocaleString()}
+          </span>
+        )
+      },
+      size: 100,
+    },
+    {
+      id: 'cache_write',
+      header: t('Cache Write'),
+      cell: ({ row }) => {
+        if (!isDisplayableLogType(row.original.type)) return '—'
+        const other = parseLogOther(row.original.other)
+        const split =
+          (other?.cache_creation_tokens_5m || 0) +
+          (other?.cache_creation_tokens_1h || 0)
+        return (
+          <span className='text-muted-foreground font-mono tabular-nums'>
+            {(split || other?.cache_creation_tokens || 0).toLocaleString()}
+          </span>
+        )
+      },
+      size: 100,
     },
     {
       accessorKey: 'quota',

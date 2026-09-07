@@ -21,6 +21,8 @@ For commercial licensing, please contact support@quantumnous.com
 // All label/name values are i18n keys; use t(value) when displaying.
 // ============================================================================
 
+import { VISIBLE_CHANNEL_TYPES } from '@/lib/service-visibility'
+
 export const CHANNEL_TYPE_NEW_API = 60
 
 export const CHANNEL_TYPE_TASK_PLUGIN = 61
@@ -88,8 +90,8 @@ export const CHANNEL_TYPES = {
 
 const CHANNEL_TYPE_DISPLAY_ORDER: number[] = [
   1, 14, 33, 24, 43, 3, 41, 48, 60, 58, 61, 42, 34, 20, 4, 40, 27, 25, 17, 26,
-  15, 46, 23, 18, 45, 31, 35, 49, 19, 47, 37, 38, 39, 11, 8, 57, 59, 22, 21,
-  44, 2, 5, 36, 50, 51, 52, 53, 54, 55, 56,
+  15, 46, 23, 18, 45, 31, 35, 49, 19, 47, 37, 38, 39, 11, 8, 57, 59, 22, 21, 44,
+  2, 5, 36, 50, 51, 52, 53, 54, 55, 56,
 ]
 
 export const CHANNEL_TYPE_OPTIONS: { value: number; label: string }[] = (() => {
@@ -111,15 +113,17 @@ export const CHANNEL_TYPE_OPTIONS: { value: number; label: string }[] = (() => {
   return ordered
 })()
 
+export const VISIBLE_CHANNEL_TYPE_OPTIONS = VISIBLE_CHANNEL_TYPES.map(
+  (type) => ({
+    value: type,
+    label: CHANNEL_TYPES[type as keyof typeof CHANNEL_TYPES],
+  })
+)
+
 export function channelTypeOptionsForTaskPluginBind(
-  canBindTaskPlugin: boolean
+  _canBindTaskPlugin: boolean
 ): { value: number; label: string }[] {
-  if (canBindTaskPlugin) {
-    return CHANNEL_TYPE_OPTIONS
-  }
-  return CHANNEL_TYPE_OPTIONS.filter(
-    (option) => option.value !== CHANNEL_TYPE_TASK_PLUGIN
-  )
+  return VISIBLE_CHANNEL_TYPE_OPTIONS
 }
 
 // ============================================================================

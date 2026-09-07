@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from '@tanstack/react-router'
 import axios from 'axios'
-import { Loader2, LogIn, KeyRound } from 'lucide-react'
+import { Loader2, KeyRound } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -345,6 +345,7 @@ export function UserAuthForm({
       {/* OAuth Providers */}
       <OAuthProviders
         status={status}
+        showDivider={false}
         redirectTo={redirectTo}
         disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
         onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
@@ -361,6 +362,13 @@ export function UserAuthForm({
         {...props}
       >
         {hasAlternativeLogin && alternativeLoginMethods}
+        {hasAlternativeLogin && passwordLoginEnabled && (
+          <div className='text-muted-foreground flex items-center gap-3 text-xs'>
+            <span className='bg-border h-px flex-1' />
+            <span>{t('Or sign in with your account')}</span>
+            <span className='bg-border h-px flex-1' />
+          </div>
+        )}
 
         {passwordLoginEnabled && (
           <>
@@ -388,7 +396,15 @@ export function UserAuthForm({
               name='password'
               render={({ field }) => (
                 <FormItem className='relative'>
-                  <FormLabel>{t('Password')}</FormLabel>
+                  <div className='flex items-center justify-between gap-3'>
+                    <FormLabel>{t('Password')}</FormLabel>
+                    <Link
+                      to='/forgot-password'
+                      className='text-muted-foreground hover:text-foreground text-xs'
+                    >
+                      {t('Forgot password?')}
+                    </Link>
+                  </div>
                   <FormControl>
                     <PasswordInput
                       placeholder={t('Enter password')}
@@ -396,29 +412,13 @@ export function UserAuthForm({
                     />
                   </FormControl>
                   <FormMessage />
-                  <Link
-                    to='/forgot-password'
-                    className='text-muted-foreground absolute end-0 -top-0.5 z-10 text-sm font-medium hover:opacity-75'
-                  >
-                    {t('Forgot password?')}
-                  </Link>
                 </FormItem>
               )}
             />
 
-            {/* Submit Button */}
-            <Button
-              type='submit'
-              className='mt-2 w-full justify-center gap-2'
-              disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
-            >
-              {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
-              {t('Sign in')}
-            </Button>
-
             {/* Turnstile */}
             {isTurnstileEnabled && (
-              <div className='mt-2'>
+              <div className='flex justify-center'>
                 <Turnstile
                   key={turnstileWidgetKey}
                   siteKey={turnstileSiteKey}
@@ -434,8 +434,18 @@ export function UserAuthForm({
           status={status}
           checked={agreedToLegal}
           onCheckedChange={setAgreedToLegal}
-          className='mt-1'
         />
+
+        {passwordLoginEnabled && (
+          <Button
+            type='submit'
+            className='w-full justify-center gap-2'
+            disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
+          >
+            {isLoading && <Loader2 className='animate-spin' />}
+            {t('Sign in')}
+          </Button>
+        )}
 
         {!hasAlternativeLogin && alternativeLoginMethods}
       </form>

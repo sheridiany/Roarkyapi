@@ -45,6 +45,10 @@ import {
 import { useMediaQuery } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { getLobeIcon } from '@/lib/lobe-icon'
+import {
+  isVisibleChannelType,
+  VISIBLE_CHANNEL_TYPES,
+} from '@/lib/service-visibility'
 
 import { getChannels, searchChannels, getGroups } from '../api'
 import {
@@ -131,7 +135,17 @@ export function ChannelsTable() {
           return stored === 'enabled' || stored === 'disabled' ? [stored] : []
         },
       },
-      { columnId: 'type', searchKey: 'type', type: 'array' },
+      {
+        columnId: 'type',
+        searchKey: 'type',
+        type: 'array',
+        deserialize: (value) => {
+          const selected = Array.isArray(value)
+            ? value.find((item) => isVisibleChannelType(Number(item)))
+            : undefined
+          return [selected || '1']
+        },
+      },
       { columnId: 'group', searchKey: 'group', type: 'array' },
       { columnId: 'model', searchKey: 'model', type: 'string' },
     ],
@@ -149,17 +163,27 @@ export function ChannelsTable() {
         CHANNELS_STATUS_FILTER_STORAGE_KEY,
         status?.[0] ?? 'all'
       )
-      return next
+      const selectedType =
+        (
+          next.find((filter) => filter.id === 'type')?.value as
+            | string[]
+            | undefined
+        )?.find((value) => isVisibleChannelType(Number(value))) || '1'
+      return [
+        ...next.filter((filter) => filter.id !== 'type'),
+        { id: 'type', value: [selectedType] },
+      ]
     })
   }
 
   // Extract filters from column filters
   const statusFilter =
     (columnFilters.find((f) => f.id === 'status')?.value as string[]) || []
-  const typeFilter = useMemo(
-    () => (columnFilters.find((f) => f.id === 'type')?.value as string[]) || [],
-    [columnFilters]
-  )
+  const typeFilter = useMemo(() => {
+    const values =
+      (columnFilters.find((f) => f.id === 'type')?.value as string[]) || []
+    return [values.find((value) => isVisibleChannelType(Number(value))) || '1']
+  }, [columnFilters])
   const groupFilter =
     (columnFilters.find((f) => f.id === 'group')?.value as string[]) || []
   const {
@@ -350,54 +374,20 @@ export function ChannelsTable() {
   // Prepare filter options from existing channel types only.
   const typeFilterOptions = useMemo(() => {
     const counts = typeCounts || {}
-    const typeIds = Object.entries(counts)
-      .map(([type, count]) => ({
-        type: Number(type),
-        count: Number(count) || 0,
-      }))
-      .filter((item) => item.type > 0 && item.count > 0)
-      .sort((a, b) => {
-        const labelA = t(getChannelTypeLabel(a.type))
-        const labelB = t(getChannelTypeLabel(b.type))
-        return labelA.localeCompare(labelB)
-      })
-
-    const selectedType = typeFilter.find((value) => value !== 'all')
-    if (selectedType) {
-      const selectedTypeId = Number(selectedType)
-      const alreadyIncluded = typeIds.some(
-        (item) => item.type === selectedTypeId
-      )
-      if (selectedTypeId > 0 && !alreadyIncluded) {
-        typeIds.push({
-          type: selectedTypeId,
-          count: Number(counts[selectedType]) || 0,
-        })
+    const typeIds = VISIBLE_CHANNEL_TYPES.map((type) => ({
+      type,
+      count: Number(counts[type]) || 0,
+    }))
+    return typeIds.map((item) => {
+      const iconName = getChannelTypeIcon(item.type)
+      return {
+        label: getChannelTypeLabel(item.type),
+        value: String(item.type),
+        count: item.count,
+        iconNode: getLobeIcon(`${iconName}.Color`, 16),
       }
-    }
-
-    const totalTypes = Object.values(counts).reduce(
-      (sum, count) => sum + (Number(count) || 0),
-      0
-    )
-
-    return [
-      {
-        label: 'All Types',
-        value: 'all',
-        count: totalTypes,
-      },
-      ...typeIds.map((item) => {
-        const iconName = getChannelTypeIcon(item.type)
-        return {
-          label: getChannelTypeLabel(item.type),
-          value: String(item.type),
-          count: item.count,
-          iconNode: getLobeIcon(`${iconName}.Color`, 16),
-        }
-      }),
-    ]
-  }, [t, typeCounts, typeFilter])
+    })
+  }, [typeCounts])
 
   const groupFilterOptions = [
     { label: t('All Groups'), value: 'all' },

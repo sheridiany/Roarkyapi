@@ -34,6 +34,7 @@ interface CompactDateTimeRangePickerProps {
   start?: Date
   end?: Date
   onChange: (range: { start?: Date; end?: Date }) => void
+  inline?: boolean
   className?: string
 }
 
@@ -52,6 +53,7 @@ export function CompactDateTimeRangePicker({
   end,
   onChange,
   className,
+  inline = false,
 }: CompactDateTimeRangePickerProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -117,111 +119,136 @@ export function CompactDateTimeRangePicker({
   }
 
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger
-        render={
-          <Button
-            type='button'
-            variant='outline'
-            className={cn(
-              'w-full justify-start gap-2 px-2.5 text-sm leading-5 font-normal tabular-nums',
-              !start && !end && 'text-muted-foreground',
-              className
-            )}
+    <div className={cn(inline && 'flex min-w-0 items-center gap-2')}>
+      {inline && (
+        <>
+          <Input
+            type='datetime-local'
+            aria-label={t('Start Time')}
+            className='h-8 min-w-0 flex-1 text-xs tabular-nums'
+            value={toInputValue(start)}
+            onChange={(event) =>
+              onChange({ start: fromInputValue(event.target.value), end })
+            }
           />
-        }
-      >
-        <CalendarDays className='text-muted-foreground size-4 shrink-0' />
-        <span className='truncate'>{label}</span>
-      </PopoverTrigger>
-      <PopoverContent
-        align='start'
-        className='w-[min(520px,calc(100vw-2rem))] p-3'
-      >
-        <div className='space-y-3'>
-          <div className='grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-end'>
-            <div className='space-y-1.5'>
-              <div className='text-muted-foreground text-xs'>
-                {t('Start Time')}
+          <Input
+            type='datetime-local'
+            aria-label={t('End Time')}
+            className='h-8 min-w-0 flex-1 text-xs tabular-nums'
+            value={toInputValue(end)}
+            onChange={(event) =>
+              onChange({ start, end: fromInputValue(event.target.value) })
+            }
+          />
+        </>
+      )}
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverTrigger
+          render={
+            <Button
+              type='button'
+              variant='outline'
+              className={cn(
+                'w-full justify-start gap-2 px-2.5 text-sm leading-5 font-normal tabular-nums',
+                !start && !end && 'text-muted-foreground',
+                inline && 'size-8 shrink-0 justify-center px-0',
+                className
+              )}
+            />
+          }
+        >
+          <CalendarDays className='text-muted-foreground size-4 shrink-0' />
+          <span className={inline ? 'sr-only' : 'truncate'}>{label}</span>
+        </PopoverTrigger>
+        <PopoverContent
+          align='start'
+          className='w-[min(520px,calc(100vw-2rem))] p-3'
+        >
+          <div className='space-y-3'>
+            <div className='grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-end'>
+              <div className='space-y-1.5'>
+                <div className='text-muted-foreground text-xs'>
+                  {t('Start Time')}
+                </div>
+                <Input
+                  type='datetime-local'
+                  value={draftStart}
+                  onChange={(e) => setDraftStart(e.target.value)}
+                  className='h-8 text-sm leading-5 tabular-nums'
+                />
               </div>
-              <Input
-                type='datetime-local'
-                value={draftStart}
-                onChange={(e) => setDraftStart(e.target.value)}
-                className='h-8 text-sm leading-5 tabular-nums'
-              />
-            </div>
-            <span className='text-muted-foreground hidden pb-2 text-xs sm:block'>
-              ~
-            </span>
-            <div className='space-y-1.5'>
-              <div className='text-muted-foreground text-xs'>
-                {t('End Time')}
+              <span className='text-muted-foreground hidden pb-2 text-xs sm:block'>
+                ~
+              </span>
+              <div className='space-y-1.5'>
+                <div className='text-muted-foreground text-xs'>
+                  {t('End Time')}
+                </div>
+                <Input
+                  type='datetime-local'
+                  value={draftEnd}
+                  onChange={(e) => setDraftEnd(e.target.value)}
+                  className='h-8 text-sm leading-5 tabular-nums'
+                />
               </div>
-              <Input
-                type='datetime-local'
-                value={draftEnd}
-                onChange={(e) => setDraftEnd(e.target.value)}
-                className='h-8 text-sm leading-5 tabular-nums'
-              />
+            </div>
+
+            <div className='flex flex-wrap gap-1.5'>
+              <Button
+                type='button'
+                variant='secondary'
+                size='sm'
+                className='h-7 flex-1 px-2 text-xs'
+                onClick={() => applyPreset('today')}
+              >
+                {t('Today')}
+              </Button>
+              <Button
+                type='button'
+                variant='secondary'
+                size='sm'
+                className='h-7 flex-1 px-2 text-xs'
+                onClick={() => applyPreset('7d')}
+              >
+                {t('7 Days')}
+              </Button>
+              <Button
+                type='button'
+                variant='secondary'
+                size='sm'
+                className='h-7 flex-1 px-2 text-xs'
+                onClick={() => applyPreset('week')}
+              >
+                {t('This week')}
+              </Button>
+              <Button
+                type='button'
+                variant='secondary'
+                size='sm'
+                className='h-7 flex-1 px-2 text-xs'
+                onClick={() => applyPreset('30d')}
+              >
+                {t('30 Days')}
+              </Button>
+              <Button
+                type='button'
+                variant='secondary'
+                size='sm'
+                className='h-7 flex-1 px-2 text-xs'
+                onClick={() => applyPreset('month')}
+              >
+                {t('This month')}
+              </Button>
+            </div>
+
+            <div className='flex justify-end'>
+              <Button size='sm' className='h-8' onClick={applyDraft}>
+                {t('Confirm')}
+              </Button>
             </div>
           </div>
-
-          <div className='flex flex-wrap gap-1.5'>
-            <Button
-              type='button'
-              variant='secondary'
-              size='sm'
-              className='h-7 flex-1 px-2 text-xs'
-              onClick={() => applyPreset('today')}
-            >
-              {t('Today')}
-            </Button>
-            <Button
-              type='button'
-              variant='secondary'
-              size='sm'
-              className='h-7 flex-1 px-2 text-xs'
-              onClick={() => applyPreset('7d')}
-            >
-              {t('7 Days')}
-            </Button>
-            <Button
-              type='button'
-              variant='secondary'
-              size='sm'
-              className='h-7 flex-1 px-2 text-xs'
-              onClick={() => applyPreset('week')}
-            >
-              {t('This week')}
-            </Button>
-            <Button
-              type='button'
-              variant='secondary'
-              size='sm'
-              className='h-7 flex-1 px-2 text-xs'
-              onClick={() => applyPreset('30d')}
-            >
-              {t('30 Days')}
-            </Button>
-            <Button
-              type='button'
-              variant='secondary'
-              size='sm'
-              className='h-7 flex-1 px-2 text-xs'
-              onClick={() => applyPreset('month')}
-            >
-              {t('This month')}
-            </Button>
-          </div>
-
-          <div className='flex justify-end'>
-            <Button size='sm' className='h-8' onClick={applyDraft}>
-              {t('Confirm')}
-            </Button>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+        </PopoverContent>
+      </Popover>
+    </div>
   )
 }

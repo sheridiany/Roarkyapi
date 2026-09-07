@@ -16,17 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Mail, Shield, Send, Link2, Unlink } from 'lucide-react'
+import { Mail, Unlink } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SiGithub, SiWechat, SiLinux } from 'react-icons/si'
+import { SiGoogle } from 'react-icons/si'
 import { toast } from 'sonner'
 
-import { IconDiscord } from '@/assets/brand-icons'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import { createOAuthFlow } from '@/features/auth/api'
 import {
   OAUTH_BIND_CALLBACK_MESSAGE,
@@ -42,10 +40,7 @@ import { useDialogs } from '@/hooks/use-dialog'
 import { useStatus } from '@/hooks/use-status'
 import { api } from '@/lib/api'
 import {
-  buildDiscordOAuthUrl,
-  buildGitHubOAuthUrl,
   indexCustomOAuthBindings,
-  buildLinuxDOOAuthUrl,
   buildOIDCOAuthUrl,
   type CustomOAuthBinding,
 } from '@/lib/oauth'
@@ -53,8 +48,6 @@ import {
 import { getSelfOAuthBindings, unbindCustomOAuth } from '../../api'
 import type { UserProfile, BindingItem } from '../../types'
 import { EmailBindDialog } from '../dialogs/email-bind-dialog'
-import { TelegramBindDialog } from '../dialogs/telegram-bind-dialog'
-import { WeChatBindDialog } from '../dialogs/wechat-bind-dialog'
 
 // ============================================================================
 // Account Bindings Tab Component
@@ -65,7 +58,7 @@ interface AccountBindingsTabProps {
   onUpdate: () => void
 }
 
-type DialogKey = 'email' | 'wechat' | 'telegram'
+type DialogKey = 'email'
 
 interface PendingOAuthBinding {
   provider: string
@@ -107,9 +100,20 @@ export function AccountBindingsTab({
     []
   )
 
-  const customProviders = status?.custom_oauth_providers as
-    | CustomOAuthProviderInfo[]
-    | undefined
+  const customProviders = useMemo(
+    () =>
+      (
+        status?.custom_oauth_providers as CustomOAuthProviderInfo[] | undefined
+      )?.filter(
+        (provider) =>
+          provider.slug.toLowerCase() === 'google' ||
+          provider.name.toLowerCase() === 'google' ||
+          provider.authorization_endpoint.startsWith(
+            'https://accounts.google.com/'
+          )
+      ),
+    [status?.custom_oauth_providers]
+  )
   const customBindingsByProviderId = useMemo(
     () => indexCustomOAuthBindings(customBindings),
     [customBindings]
@@ -307,106 +311,27 @@ export function AccountBindingsTab({
         onBind: () => dialogs.open('email'),
       },
       {
-        id: 'wechat',
-        label: t('WeChat'),
-        icon: SiWechat as React.ComponentType<{ className?: string }>,
-        value: undefined,
-        isBound: Boolean(
-          (profile as unknown as Record<string, unknown>).wechat_id
-        ),
-        isEnabled: status?.wechat_login || false,
-        onBind: () => dialogs.open('wechat'),
-      },
-      {
-        id: 'github',
-        label: t('GitHub'),
-        icon: SiGithub,
-        value: (profile as unknown as Record<string, unknown>).github_id as
-          | string
-          | undefined,
-        isBound: Boolean(
-          (profile as unknown as Record<string, unknown>).github_id
-        ),
-        isEnabled: status?.github_oauth || false,
-        onBind: () => {
-          const clientId = status?.github_client_id
-          if (clientId) {
-            void startOAuthBinding('github', (state) =>
-              buildGitHubOAuthUrl(clientId, state)
-            )
-          }
-        },
-      },
-      {
-        id: 'discord',
-        label: t('Discord'),
-        icon: IconDiscord,
-        value: (profile as unknown as Record<string, unknown>).discord_id as
-          | string
-          | undefined,
-        isBound: Boolean(
-          (profile as unknown as Record<string, unknown>).discord_id
-        ),
-        isEnabled: status?.discord_oauth || false,
-        onBind: () => {
-          const clientId = status?.discord_client_id
-          if (clientId) {
-            void startOAuthBinding('discord', (state) =>
-              buildDiscordOAuthUrl(clientId, state)
-            )
-          }
-        },
-      },
-      {
         id: 'oidc',
-        label: t('OIDC'),
-        icon: Shield,
+        label: 'Google',
+        icon: SiGoogle,
         value: (profile as unknown as Record<string, unknown>).oidc_id as
           | string
           | undefined,
         isBound: Boolean(
           (profile as unknown as Record<string, unknown>).oidc_id
         ),
-        isEnabled: status?.oidc_enabled || false,
+        isEnabled: Boolean(
+          status?.oidc_enabled &&
+          status?.oidc_authorization_endpoint?.startsWith(
+            'https://accounts.google.com/'
+          )
+        ),
         onBind: () => {
           const authorizationEndpoint = status?.oidc_authorization_endpoint
           const clientId = status?.oidc_client_id
           if (authorizationEndpoint && clientId) {
             void startOAuthBinding('oidc', (state) =>
               buildOIDCOAuthUrl(authorizationEndpoint, clientId, state)
-            )
-          }
-        },
-      },
-      {
-        id: 'telegram',
-        label: t('Telegram'),
-        icon: Send,
-        value: (profile as unknown as Record<string, unknown>).telegram_id as
-          | string
-          | undefined,
-        isBound: Boolean(
-          (profile as unknown as Record<string, unknown>).telegram_id
-        ),
-        isEnabled: status?.telegram_oauth || false,
-        onBind: () => dialogs.open('telegram'),
-      },
-      {
-        id: 'linuxdo',
-        label: t('LinuxDO'),
-        icon: SiLinux as React.ComponentType<{ className?: string }>,
-        value: (profile as unknown as Record<string, unknown>).linux_do_id as
-          | string
-          | undefined,
-        isBound: Boolean(
-          (profile as unknown as Record<string, unknown>).linux_do_id
-        ),
-        isEnabled: status?.linuxdo_oauth || false,
-        onBind: () => {
-          const clientId = status?.linuxdo_client_id
-          if (clientId) {
-            void startOAuthBinding('linuxdo', (state) =>
-              buildLinuxDOOAuthUrl(clientId, state)
             )
           }
         },
@@ -419,7 +344,7 @@ export function AccountBindingsTab({
 
   return (
     <>
-      <div className='grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3'>
+      <div className='grid grid-cols-1 gap-3'>
         {bindings.map((binding) => {
           let actionLabel = t('Bind')
           if (binding.isBound && binding.id === 'email') {
@@ -431,7 +356,7 @@ export function AccountBindingsTab({
           return (
             <div
               key={binding.id}
-              className='flex items-center justify-between gap-2.5 rounded-lg border p-2.5 sm:gap-3 sm:p-3'
+              className='flex min-h-20 items-center justify-between gap-3 rounded-lg border p-4'
             >
               <div className='flex min-w-0 items-center gap-2.5 sm:gap-3'>
                 <div className='bg-muted shrink-0 rounded-md p-1.5 sm:p-2'>
@@ -449,14 +374,16 @@ export function AccountBindingsTab({
                     )}
                   </div>
                   <p className='text-muted-foreground truncate text-xs'>
-                    {binding.value || t('Not bound')}
+                    {binding.id === 'email'
+                      ? binding.value || t('Not bound')
+                      : t('Sign in with Google')}
                   </p>
                 </div>
               </div>
               <Button
                 variant='outline'
                 size='sm'
-                className='h-7 shrink-0 px-2.5 text-xs'
+                className='h-8 min-w-16 shrink-0'
                 onClick={binding.onBind}
                 disabled={binding.isBound && binding.id !== 'email'}
               >
@@ -469,68 +396,80 @@ export function AccountBindingsTab({
 
       {/* Custom OAuth Bindings */}
       {customProviders && customProviders.length > 0 && (
-        <>
-          <Separator className='my-4' />
-          <p className='text-muted-foreground mb-3 text-sm font-medium'>
-            {t('Custom OAuth')}
-          </p>
-          <div className='grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3'>
-            {customProviders.map((provider) => {
-              const binding = customBindingsByProviderId.get(provider.id)
-              const isBound = !!binding
-              return (
-                <div
-                  key={provider.id}
-                  className='flex items-center justify-between gap-2.5 rounded-lg border p-2.5 sm:gap-3 sm:p-3'
-                >
-                  <div className='flex min-w-0 items-center gap-2.5 sm:gap-3'>
-                    <div className='bg-muted shrink-0 rounded-md p-1.5 sm:p-2'>
-                      <Link2 className='h-4 w-4' />
-                    </div>
-                    <div className='min-w-0'>
-                      <div className='flex items-center gap-1.5'>
-                        <p className='text-sm font-medium'>{provider.name}</p>
-                        {isBound && (
-                          <StatusBadge
-                            label={t('Bound')}
-                            variant='success'
-                            copyable={false}
-                          />
-                        )}
-                      </div>
-                      <p className='text-muted-foreground truncate text-xs'>
-                        {isBound
-                          ? binding?.provider_user_id || t('Bound')
-                          : t('Not bound')}
-                      </p>
-                    </div>
+        <div className='mt-3 grid grid-cols-1 gap-3'>
+          {customProviders.map((provider) => {
+            const binding = customBindingsByProviderId.get(provider.id)
+            const isBound = !!binding
+            return (
+              <div
+                key={provider.id}
+                className='flex min-h-20 items-center justify-between gap-3 rounded-lg border p-4'
+              >
+                <div className='flex min-w-0 items-center gap-2.5 sm:gap-3'>
+                  <div className='bg-muted shrink-0 rounded-md p-1.5 sm:p-2'>
+                    <SiGoogle className='h-4 w-4' />
                   </div>
-                  {isBound ? (
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      className='text-destructive h-7 shrink-0 px-2.5 text-xs'
-                      onClick={() => setUnbindTarget(binding)}
-                    >
-                      <Unlink className='mr-1 h-3 w-3' />
-                      {t('Unbind')}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      className='h-7 shrink-0 px-2.5 text-xs'
-                      onClick={() => handleBindCustomOAuth(provider)}
-                    >
-                      {t('Bind')}
-                    </Button>
-                  )}
+                  <div className='min-w-0'>
+                    <div className='flex items-center gap-1.5'>
+                      <p className='text-sm font-medium'>Google</p>
+                      {isBound && (
+                        <StatusBadge
+                          label={t('Bound')}
+                          variant='success'
+                          copyable={false}
+                        />
+                      )}
+                    </div>
+                    <p className='text-muted-foreground truncate text-xs'>
+                      {t('Sign in with Google')}
+                    </p>
+                  </div>
                 </div>
-              )
-            })}
-          </div>
-        </>
+                {isBound ? (
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    className='text-destructive h-8 min-w-16 shrink-0'
+                    onClick={() => setUnbindTarget(binding)}
+                  >
+                    <Unlink className='mr-1 h-3 w-3' />
+                    {t('Unbind')}
+                  </Button>
+                ) : (
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    className='h-8 min-w-16 shrink-0'
+                    onClick={() => handleBindCustomOAuth(provider)}
+                  >
+                    {t('Bind')}
+                  </Button>
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
+
+      {!customProviders?.length &&
+        !bindings.some((binding) => binding.id === 'oidc') && (
+          <div className='mt-3 flex min-h-20 items-center justify-between gap-3 rounded-lg border p-4'>
+            <div className='flex items-center gap-3'>
+              <div className='bg-muted shrink-0 rounded-md p-2'>
+                <SiGoogle className='size-4' />
+              </div>
+              <div>
+                <p className='text-sm font-medium'>Google</p>
+                <p className='text-muted-foreground text-xs'>
+                  {t('Sign in with Google')}
+                </p>
+              </div>
+            </div>
+            <Button variant='outline' size='sm' disabled>
+              {t('Not enabled')}
+            </Button>
+          </div>
+        )}
 
       {/* Custom OAuth Unbind Confirmation */}
       <ConfirmDialog
@@ -558,30 +497,6 @@ export function AccountBindingsTab({
         currentEmail={profile.email}
         onSuccess={onUpdate}
       />
-
-      {/* WeChat Bind Dialog */}
-      <WeChatBindDialog
-        open={dialogs.isOpen('wechat')}
-        qrCodeUrl={
-          typeof status?.wechat_qrcode === 'string' ? status.wechat_qrcode : ''
-        }
-        onOpenChange={(open) =>
-          open ? dialogs.open('wechat') : dialogs.close('wechat')
-        }
-        onSuccess={onUpdate}
-      />
-
-      {/* Telegram Bind Dialog */}
-      {status?.telegram_bot_name && (
-        <TelegramBindDialog
-          open={dialogs.isOpen('telegram')}
-          onOpenChange={(open) =>
-            open ? dialogs.open('telegram') : dialogs.close('telegram')
-          }
-          botName={status.telegram_bot_name as string}
-          onSuccess={onUpdate}
-        />
-      )}
     </>
   )
 }

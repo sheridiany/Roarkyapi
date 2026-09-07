@@ -31,7 +31,6 @@ import {
   useDebouncedColumnFilter,
   useDataTable,
 } from '@/components/data-table'
-import { StatusBadge } from '@/components/status-badge'
 import {
   Empty,
   EmptyDescription,
@@ -46,21 +45,20 @@ import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { getApiKeys, searchApiKeys } from '../api'
-import {
-  API_KEY_STATUS,
-  API_KEY_STATUS_OPTIONS,
-  API_KEY_STATUSES,
-  ERROR_MESSAGES,
-} from '../constants'
+import { API_KEY_STATUS, ERROR_MESSAGES } from '../constants'
 import type { ApiKey } from '../types'
-import { ApiKeyCell, UnlimitedQuotaBadge } from './api-keys-cells'
+import { ApiKeyStatusFilter } from './api-key-status-filter'
+import {
+  ApiKeyCell,
+  ApiKeyStatusSwitch,
+  UnlimitedQuotaBadge,
+} from './api-keys-cells'
 import { useApiKeysColumns } from './api-keys-columns'
 import { useApiKeys } from './api-keys-provider'
 import { DataTableBulkActions } from './data-table-bulk-actions'
 import { DataTableRowActions } from './data-table-row-actions'
 
 const route = getRouteApi('/_authenticated/keys/')
-const API_KEYS_COLUMN_VISIBILITY_STORAGE_KEY = 'api-keys:column-visibility'
 const API_KEYS_MOBILE_SKELETON_IDS = Array.from(
   { length: 5 },
   (_, index) => `api-key-mobile-skeleton-${index + 1}`
@@ -129,7 +127,6 @@ function ApiKeysMobileList({
     <div className='divide-border overflow-hidden rounded-lg border'>
       {rows.map((row) => {
         const apiKey = row.original
-        const statusConfig = API_KEY_STATUSES[apiKey.status]
         const total = apiKey.used_quota + apiKey.remain_quota
 
         return (
@@ -149,13 +146,7 @@ function ApiKeysMobileList({
                   {t('API Key')}
                 </div>
               </div>
-              {statusConfig && (
-                <StatusBadge
-                  label={t(statusConfig.label)}
-                  variant={statusConfig.variant}
-                  copyable={false}
-                />
-              )}
+              <ApiKeyStatusSwitch apiKey={apiKey} />
             </div>
 
             <div className='flex min-w-0 items-center justify-between gap-2'>
@@ -279,9 +270,13 @@ export function ApiKeysTable() {
   const { table } = useDataTable({
     data: apiKeys,
     columns,
+    initialColumnVisibility: {
+      model_limits: false,
+      allow_ips: false,
+      accessed_time: false,
+    },
     enableRowSelection: true,
     columnFilters,
-    columnVisibilityStorageKey: API_KEYS_COLUMN_VISIBILITY_STORAGE_KEY,
     globalFilter,
     pagination,
     globalFilterFn: () => true,
@@ -306,25 +301,34 @@ export function ApiKeysTable() {
       skeletonKeyPrefix='api-keys-skeleton'
       applyHeaderSize
       toolbarProps={{
+        hideViewOptions: true,
         searchPlaceholder: t('Filter by name...'),
         searchDebounceMs: 500,
         additionalSearch: (
-          <Input
-            placeholder={t('Filter by API key...')}
-            aria-label={t('Filter by API key...')}
-            value={tokenFilterInput}
-            onChange={(e) => setTokenFilterInput(e.target.value)}
-            className='w-full sm:w-50 lg:w-60'
-          />
+          <>
+            <Input
+              placeholder={t('Filter by API key...')}
+              aria-label={t('Filter by API key...')}
+              value={tokenFilterInput}
+              onChange={(e) => setTokenFilterInput(e.target.value)}
+              className='w-full sm:w-50 lg:w-60'
+            />
+            <ApiKeyStatusFilter
+              value={
+                (
+                  table.getColumn('status')?.getFilterValue() as
+                    | string[]
+                    | undefined
+                )?.[0] || ''
+              }
+              onChange={(value) =>
+                table
+                  .getColumn('status')
+                  ?.setFilterValue(value ? [value] : undefined)
+              }
+            />
+          </>
         ),
-        filters: [
-          {
-            columnId: 'status',
-            title: t('Status'),
-            options: API_KEY_STATUS_OPTIONS,
-            singleSelect: true,
-          },
-        ],
       }}
       mobile={<ApiKeysMobileList table={table} isLoading={isLoading} />}
       getRowClassName={(row) =>

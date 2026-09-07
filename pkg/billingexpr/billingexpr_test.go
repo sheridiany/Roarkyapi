@@ -1063,3 +1063,13 @@ func BenchmarkExprRunCached(b *testing.B) {
 		billingexpr.RunExpr(benchComplexExpr, params)
 	}
 }
+
+func TestComputeTieredQuota_GroupHalfQuotaBoundary(t *testing.T) {
+	expr := `p * 0.75 + c * 3.75 + cr * 0.075`
+	snap := &billingexpr.BillingSnapshot{ExprString: expr, ExprHash: billingexpr.ExprHashString(expr), GroupRatio: 1.2, QuotaPerUnit: 500_000}
+	result, err := billingexpr.ComputeTieredQuota(snap, billingexpr.TokenParams{P: 1105, C: 45})
+	require.NoError(t, err)
+	assert.Equal(t, 498.75, result.ActualQuotaBeforeGroup)
+	assert.Equal(t, 599, result.ActualQuotaAfterGroup)
+	assert.Nil(t, result.Clamp)
+}

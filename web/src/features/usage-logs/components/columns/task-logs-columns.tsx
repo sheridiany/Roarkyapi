@@ -24,10 +24,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { StatusBadge } from '@/components/status-badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
+import { UserAvatar } from '@/components/user-avatar'
 import { formatTimestampToDate } from '@/lib/format'
-import { cn } from '@/lib/utils'
 
 import { taskActionMapper, taskStatusMapper } from '../../lib/mappers'
 import type { TaskLog } from '../../types'
@@ -137,21 +135,11 @@ export function useTaskLogsColumns(
                 setUserInfoDialogOpen(true)
               }}
             >
-              <Avatar className='ring-border/60 size-6 ring-1 max-sm:hidden'>
-                <AvatarFallback
-                  className={cn(
-                    'text-[11px] font-semibold',
-                    !sensitiveVisible && 'bg-muted text-muted-foreground'
-                  )}
-                  style={
-                    sensitiveVisible
-                      ? getUserAvatarStyle(displayName)
-                      : undefined
-                  }
-                >
-                  {sensitiveVisible ? getUserAvatarFallback(displayName) : '•'}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                name={displayName}
+                masked={!sensitiveVisible}
+                className='size-6 shrink-0 max-sm:hidden'
+              />
               <span className='text-muted-foreground truncate text-sm hover:underline'>
                 {sensitiveVisible ? displayName : '••••'}
               </span>

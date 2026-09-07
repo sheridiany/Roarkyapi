@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { Check, Copy, Loader2 } from 'lucide-react'
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { BadgeCell } from '@/components/data-table'
 import { StatusBadge } from '@/components/status-badge'
@@ -28,6 +29,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { Switch } from '@/components/ui/switch'
 import {
   Tooltip,
   TooltipContent,
@@ -36,6 +38,8 @@ import {
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
 import { formatQuota } from '@/lib/format'
 
+import { updateApiKeyStatus } from '../api'
+import { API_KEY_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
 import type { ApiKey } from '../types'
 import { useApiKeys } from './api-keys-provider'
 
@@ -142,6 +146,47 @@ export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
   )
 }
 
+export function ApiKeyStatusSwitch(props: { apiKey: ApiKey }) {
+  const { t } = useTranslation()
+  const { triggerRefresh } = useApiKeys()
+  const [pending, setPending] = useState(false)
+  const enabled = props.apiKey.status === API_KEY_STATUS.ENABLED
+  return (
+    <Switch
+      checked={enabled}
+      disabled={pending}
+      aria-label={`${enabled ? t('Disable') : t('Enable')} ${props.apiKey.name}`}
+      onCheckedChange={async (checked) => {
+        setPending(true)
+        try {
+          const result = await updateApiKeyStatus(
+            props.apiKey.id,
+            checked ? API_KEY_STATUS.ENABLED : API_KEY_STATUS.DISABLED
+          )
+          if (result.success) {
+            toast.success(
+              t(
+                checked
+                  ? SUCCESS_MESSAGES.API_KEY_ENABLED
+                  : SUCCESS_MESSAGES.API_KEY_DISABLED
+              )
+            )
+            triggerRefresh()
+          } else {
+            toast.error(
+              result.message || t(ERROR_MESSAGES.STATUS_UPDATE_FAILED)
+            )
+          }
+        } catch {
+          toast.error(t(ERROR_MESSAGES.UNEXPECTED))
+        } finally {
+          setPending(false)
+        }
+      }}
+    />
+  )
+}
+
 type UnlimitedQuotaBadgeProps = {
   used: number
 }
@@ -161,11 +206,9 @@ export function UnlimitedQuotaBadge(props: UnlimitedQuotaBadgeProps) {
           />
         }
       >
-        <StatusBadge
-          label={t('Unlimited')}
-          variant='neutral'
-          copyable={false}
-        />
+        <span className='font-mono text-xs tabular-nums'>
+          {formattedUsed} / ∞
+        </span>
       </PopoverTrigger>
       <PopoverContent className='w-auto p-2' side='top'>
         <span className='text-xs'>

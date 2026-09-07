@@ -27,7 +27,6 @@ import {
   DataTableRow,
   useDataTable,
 } from '@/components/data-table'
-import { useMediaQuery } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { cn } from '@/lib/utils'
 
@@ -41,6 +40,7 @@ import { parseLogOther } from '../lib/format'
 import { fetchLogsByCategory } from '../lib/utils'
 import type { LogCategory } from '../types'
 import { CommonLogsFilterBar } from './common-logs-filter-bar'
+import { CommonLogsStats } from './common-logs-stats'
 import { TaskLogsFilterBar } from './task-logs-filter-bar'
 import { UsageLogsMobileList } from './usage-logs-mobile-card'
 import { useLogsViewScope, type LogsViewAccess } from './usage-logs-provider'
@@ -84,7 +84,6 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     isRootView: isRoot,
     viewAccess,
   } = useLogsViewScope()
-  const isMobile = useMediaQuery('(max-width: 640px)')
   const searchParams = route.useSearch()
 
   const {
@@ -96,7 +95,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   } = useTableUrlState({
     search: route.useSearch(),
     navigate: route.useNavigate(),
-    pagination: { defaultPage: 1, defaultPageSize: isMobile ? 20 : 100 },
+    pagination: { defaultPage: 1, defaultPageSize: 20 },
     globalFilter: { enabled: false },
     columnFilters: [
       {
@@ -177,6 +176,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       viewAccess
     ),
     pagination,
+    initialColumnVisibility: { token_name: false },
     enableRowSelection: false,
     onPaginationChange,
     onColumnFiltersChange,
@@ -198,6 +198,14 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       emptyDescription={t(
         'No usage logs available. Logs will appear here once API calls are made.'
       )}
+      afterTable={
+        isCommon ? (
+          <div className='shrink-0 border-t pt-3'>
+            <CommonLogsStats />
+          </div>
+        ) : undefined
+      }
+      className='gateway-log-table'
       skeletonKeyPrefix='usage-log-skeleton'
       applyHeaderSize
       tableClassName={cn(

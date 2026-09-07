@@ -27,11 +27,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-import {
-  // AutoGroupBadge,
-  GroupRatioBadge,
-  type GroupRatio,
-} from './auto-group-visuals'
+import type { GroupRatio } from './auto-group-visuals'
 
 type ApiKeyGroupCellProps = {
   crossGroupRetry: boolean
@@ -66,17 +62,7 @@ export function ApiKeyGroupCell(props: ApiKeyGroupCellProps) {
           />
         }
       >
-        <StatusBadge
-          label={t('Cross-group')}
-          variant='info'
-          copyable={false}
-        />
-        {/*<AutoGroupBadge shouldReduceMotion={props.shouldReduceMotion} />*/}
-        <GroupRatioBadge
-          ratio={props.ratio}
-          isAuto
-          shouldReduceMotion={props.shouldReduceMotion}
-        />
+        <StatusBadge label='Auto' variant='info' copyable={false} />
       </TooltipTrigger>
       <TooltipContent>
         <span className='text-xs'>

@@ -25,7 +25,6 @@ import {
   clearPasswordEncryptionCache,
   encryptPassword,
 } from './lib/password-encryption'
-import { getAffiliateCode } from './lib/storage'
 import type { TelegramAuthorization } from './lib/telegram-login'
 import type {
   LoginPayload,
@@ -166,12 +165,12 @@ export async function githubOAuthStart(clientId: string, state: string) {
 // Get OAuth state for CSRF protection
 export async function createOAuthFlow(
   provider: string,
-  intent: 'login' | 'bind'
+  intent: 'login' | 'bind',
+  invitationCode?: string
 ): Promise<string> {
-  const aff = intent === 'login' ? getAffiliateCode() : ''
   const res = await api.post(
     '/api/oauth/state',
-    { provider, intent, aff: aff || undefined },
+    { provider, intent, invitation_code: invitationCode },
     { skipAuthRefresh: intent === 'login' }
   )
   if (res.data?.success) {

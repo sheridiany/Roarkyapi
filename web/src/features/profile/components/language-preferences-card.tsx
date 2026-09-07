@@ -107,6 +107,7 @@ export function LanguagePreferencesCard(props: LanguagePreferencesCardProps) {
       title={t('Language Preferences')}
       description={t('Set the language used across the interface')}
       icon={<Languages className='h-4 w-4' />}
+      iconClassName='hidden'
       iconTone='chart-4'
       disableHoverEffect
     >

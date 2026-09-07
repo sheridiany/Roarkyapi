@@ -339,6 +339,7 @@ func migrateDB() error {
 		&Option{},
 		&LoginEncryptionKey{},
 		&Redemption{},
+		&RegistrationInvitation{},
 		&Ability{},
 		&Log{},
 		&Midjourney{},

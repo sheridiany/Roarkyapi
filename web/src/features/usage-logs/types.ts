@@ -114,6 +114,7 @@ export interface ToolSurchargeItem {
 }
 
 export interface LogOtherData {
+  status_code?: number
   admin_info?: {
     is_multi_key?: boolean
     multi_key_index?: number
@@ -380,6 +381,8 @@ export interface TaskArtifactsResponse {
 // ============================================================================
 
 export interface GetLogsParams {
+  category?: 'api'
+  billing_source?: string
   p?: number
   page_size?: number
   type?: number
@@ -406,6 +409,8 @@ export interface GetLogsResponse {
 }
 
 export interface GetLogStatsParams {
+  category?: 'api'
+  billing_source?: string
   type?: number
   username?: string
   token_name?: string
@@ -478,8 +483,5 @@ export interface UserInfo {
   used_quota: number
   request_count: number
   group?: string
-  aff_code?: string
-  aff_count?: number
-  aff_quota?: number
   remark?: string
 }

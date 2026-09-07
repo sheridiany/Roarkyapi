@@ -30,14 +30,11 @@ import { getSubmittableInputText } from '../../lib'
 import type {
   ModelOption,
   GroupOption,
-  ParameterEnabled,
-  PlaygroundConfig,
 } from '../../types'
 import { PlaygroundInputControls } from './playground-input-controls'
 import { PlaygroundInputTools } from './playground-input-tools'
 
 interface PlaygroundInputProps {
-  config: PlaygroundConfig
   onSubmit: (text: string) => void
   onStop?: () => void
   disabled?: boolean
@@ -50,20 +47,11 @@ interface PlaygroundInputProps {
   groupValue: string
   onGroupChange: (value: string) => void
   hasMessages?: boolean
-  onConfigChange: <K extends keyof PlaygroundConfig>(
-    key: K,
-    value: PlaygroundConfig[K]
-  ) => void
   onClearMessages?: () => void
-  onParameterEnabledChange: (
-    key: keyof ParameterEnabled,
-    value: boolean
-  ) => void
-  parameterEnabled: ParameterEnabled
+
 }
 
 export function PlaygroundInput({
-  config,
   onSubmit,
   onStop,
   disabled,
@@ -76,10 +64,7 @@ export function PlaygroundInput({
   groupValue,
   onGroupChange,
   hasMessages = false,
-  onConfigChange,
   onClearMessages,
-  onParameterEnabledChange,
-  parameterEnabled,
 }: PlaygroundInputProps) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
@@ -96,7 +81,7 @@ export function PlaygroundInput({
     <div className='grid shrink-0 gap-4 px-1 md:pb-4'>
       <PromptInput
         className='relative'
-        groupClassName='bg-background/95 dark:bg-background/80 border-border/70 shadow-[0_18px_60px_-32px_rgba(0,0,0,0.65)] ring-1 ring-foreground/5 rounded-xl overflow-hidden transition-all duration-200 focus-within:border-primary/45 focus-within:ring-primary/15 focus-within:shadow-[0_22px_70px_-34px_rgba(0,0,0,0.75)]'
+        groupClassName='bg-background/95 dark:bg-background/80 border-border/70 shadow-[0_18px_60px_-32px_rgba(0,0,0,0.65)] ring-1 ring-foreground/5 rounded-xl overflow-hidden transition-all duration-200 has-[[data-slot=input-group-control]:focus-visible]:border-border/70 has-[[data-slot=input-group-control]:focus-visible]:ring-0'
         onSubmit={handleSubmit}
       >
         <PromptInputTextarea
@@ -126,13 +111,9 @@ export function PlaygroundInput({
             text={text}
             tools={
               <PlaygroundInputTools
-                config={config}
                 disabled={disabled}
                 hasMessages={hasMessages}
-                onConfigChange={onConfigChange}
                 onClearMessages={onClearMessages}
-                onParameterEnabledChange={onParameterEnabledChange}
-                parameterEnabled={parameterEnabled}
               />
             }
           />

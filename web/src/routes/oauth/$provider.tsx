@@ -24,10 +24,14 @@ import {
 } from '@tanstack/react-router'
 import type { AxiosRequestConfig } from 'axios'
 import i18next from 'i18next'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { OAuthCallbackScreen } from '@/features/auth/components/oauth-callback-screen'
+import {
+  OAuthInvitationCompletion,
+  type PendingOAuthRegistration,
+} from '@/features/auth/components/oauth-invitation-completion'
 import {
   OAUTH_BIND_CALLBACK_MESSAGE,
   OAUTH_BIND_RESULT_MESSAGE,
@@ -59,6 +63,8 @@ interface OAuthBindingResult {
 
 function OAuthCallback() {
   const navigate = useNavigate()
+  const [pendingRegistration, setPendingRegistration] =
+    useState<PendingOAuthRegistration | null>(null)
   const { provider } = useParams({ from: '/oauth/$provider' }) as {
     provider: string
   }
@@ -198,6 +204,13 @@ function OAuthCallback() {
           skipBusinessError: true,
         }
         const response = await api.get(`/api/oauth/${provider}`, config)
+        if (
+          response.data?.success &&
+          response.data?.data?.action === 'invitation_required'
+        ) {
+          setPendingRegistration(response.data.data)
+          return
+        }
         if (response.data?.success && isAuthBundle(response.data?.data)) {
           applyAuthBundle(response.data.data)
           safeNavigate(search.redirect)
@@ -239,6 +252,15 @@ function OAuthCallback() {
     search.redirect,
     search.telegram_bind,
   ])
+
+  if (pendingRegistration) {
+    return (
+      <OAuthInvitationCompletion
+        pending={pendingRegistration}
+        redirect={search.redirect}
+      />
+    )
+  }
 
   return <OAuthCallbackScreen provider={provider} mode={mode} />
 }

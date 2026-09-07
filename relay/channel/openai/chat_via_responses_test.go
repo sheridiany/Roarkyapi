@@ -12,6 +12,7 @@ import (
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -86,6 +87,46 @@ func TestOaiResponsesToChatStreamHandlerConvertsSSEOrderAndUsage(t *testing.T) {
 		`"usage":{"prompt_tokens":2,"completion_tokens":3,"total_tokens":5`,
 		`data: [DONE]`,
 	)
+}
+
+func TestResponsesTerminalEventFinishesWithoutUpstreamEOF(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service.InitTokenEncoders()
+	oldTimeout := constant.StreamingTimeout
+	constant.StreamingTimeout = 1
+	t.Cleanup(func() { constant.StreamingTimeout = oldTimeout })
+	for _, format := range []string{"chat", "responses"} {
+		for _, terminal := range []string{"completed", "done", "incomplete"} {
+			t.Run(format+"/"+terminal, func(t *testing.T) {
+				c, recorder, resp, info := newResponsesChatTestContext(t, "", true)
+				reader, writer := io.Pipe()
+				t.Cleanup(func() { _ = writer.Close() })
+				resp.Body = reader
+				go func() {
+					_, _ = io.WriteString(writer, "data: {\"type\":\"response.output_text.delta\",\"delta\":\"OK\"}\n\ndata: {\"type\":\"response."+terminal+"\",\"response\":{\"status\":\""+terminal+"\",\"usage\":{\"input_tokens\":20,\"output_tokens\":3,\"total_tokens\":23,\"input_tokens_details\":{\"cached_tokens\":10}}}}\n\n")
+				}()
+				var usage *dto.Usage
+				var apiErr *types.NewAPIError
+				if format == "chat" {
+					usage, apiErr = OaiResponsesToChatStreamHandler(c, info, resp)
+				} else {
+					info.RelayFormat = types.RelayFormatOpenAIResponses
+					usage, apiErr = OaiResponsesStreamHandler(c, info, resp)
+				}
+				require.Nil(t, apiErr)
+				require.NotNil(t, usage)
+				assert.Equal(t, relaycommon.StreamEndReasonDone, info.StreamStatus.EndReason)
+				assert.Equal(t, 20, usage.PromptTokens)
+				assert.Equal(t, 3, usage.CompletionTokens)
+				assert.Equal(t, 10, usage.PromptTokensDetails.CachedTokens)
+				if format == "chat" {
+					assert.Contains(t, recorder.Body.String(), "data: [DONE]")
+				} else {
+					assert.Contains(t, recorder.Body.String(), "response."+terminal)
+				}
+			})
+		}
+	}
 }
 
 func TestOaiResponsesToChatStreamHandlerConvertsClaudeSSETerminalsAndUsage(t *testing.T) {
@@ -276,5 +317,34 @@ func requireOrderedSubstrings(t *testing.T, s string, parts ...string) {
 		idx := strings.Index(s[offset:], part)
 		require.NotEqualf(t, -1, idx, "missing %q after byte offset %d", part, offset)
 		offset += idx + len(part)
+	}
+}
+
+func TestResponsesUpstreamErrorDoesNotReturnBillableUsage(t *testing.T) {
+	oldTimeout := constant.StreamingTimeout
+	constant.StreamingTimeout = 30
+	t.Cleanup(func() { constant.StreamingTimeout = oldTimeout })
+	service.InitTokenEncoders()
+	for _, format := range []string{"chat", "buffered", "responses"} {
+		for _, body := range []string{`data:{"type":"error","error":{"message":"upstream connection closed"}}`, `data:{"type":"error","message":"upstream connection closed","code":"server_error"}`} {
+			t.Run(format+body, func(t *testing.T) {
+				c, recorder, resp, info := newResponsesChatTestContext(t, body+"\n\n", true)
+				var usage *dto.Usage
+				var apiErr *types.NewAPIError
+				switch format {
+				case "chat":
+					usage, apiErr = OaiResponsesToChatStreamHandler(c, info, resp)
+				case "buffered":
+					usage, apiErr = OaiResponsesToChatBufferedStreamHandler(c, info, resp)
+				case "responses":
+					info.RelayFormat = types.RelayFormatOpenAIResponses
+					usage, apiErr = OaiResponsesStreamHandler(c, info, resp)
+				}
+				require.NotNil(t, apiErr)
+				assert.Contains(t, apiErr.Error(), "upstream connection closed")
+				assert.Nil(t, usage)
+				assert.NotContains(t, recorder.Body.String(), `"finish_reason":"stop"`)
+			})
+		}
 	}
 }

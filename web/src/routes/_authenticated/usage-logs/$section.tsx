@@ -34,6 +34,8 @@ const logTypeSearchSchema = z
   .catch([])
 
 const usageLogsSearchSchema = z.object({
+  activity: z.enum(['api', 'subscription', 'topup']).optional().catch('api'),
+  billing: z.enum(['all', 'wallet', 'subscription']).optional().catch('all'),
   page: z.number().optional().catch(1),
   pageSize: z.number().optional().catch(undefined),
   type: logTypeSearchSchema.optional(),

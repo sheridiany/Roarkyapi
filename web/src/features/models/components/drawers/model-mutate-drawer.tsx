@@ -80,6 +80,7 @@ import { useUpdateOption } from '@/features/system-settings/hooks/use-update-opt
 import { normalizeJsonString } from '@/features/system-settings/models/utils'
 import type { ModelSettings } from '@/features/system-settings/types'
 import { safeJsonParse } from '@/features/system-settings/utils/json-parser'
+import { isVisibleVendor } from '@/lib/service-visibility'
 
 import { createModel, updateModel, getModel, getVendors } from '../../api'
 import { getNameRuleOptions, ENDPOINT_TEMPLATES } from '../../constants'
@@ -264,7 +265,9 @@ export function ModelMutateDrawer({
     enabled: open,
   })
 
-  const vendors = vendorsData?.data?.items || []
+  const vendors = (vendorsData?.data?.items || []).filter((vendor) =>
+    isVisibleVendor(vendor.name)
+  )
 
   // Fetch model detail if editing
   const { data: modelData } = useQuery({

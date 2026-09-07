@@ -17,7 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
+
+import type { ApiKey } from '../../types'
 
 const { createInstance } = await import('i18next')
 const { I18nextProvider, initReactI18next } = await import('react-i18next')
@@ -84,7 +86,7 @@ function installApiFixtures(createdPayloads: Array<Record<string, unknown>>) {
   }
 }
 
-async function renderCreateDrawer(): Promise<void> {
+async function renderCreateDrawer(currentRow?: ApiKey): Promise<void> {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -125,14 +127,21 @@ async function renderCreateDrawer(): Promise<void> {
     <QueryClientProvider client={queryClient}>
       <I18nextProvider i18n={i18n}>
         <ApiKeysProvider>
-          <ApiKeysMutateDrawer open onOpenChange={() => undefined} />
+          <ApiKeysMutateDrawer
+            open
+            onOpenChange={() => undefined}
+            currentRow={currentRow}
+          />
         </ApiKeysProvider>
       </I18nextProvider>
     </QueryClientProvider>
   )
   await waitFor(
     () => {
-      const saveButton = findButton('Save changes', false)
+      const saveButton = findButton(
+        currentRow ? 'Save changes' : 'Create',
+        false
+      )
       expect(saveButton).toBeEnabled()
     },
     { timeout: 1500 }
@@ -155,6 +164,9 @@ function getControlByLabel(labelText: 'Name' | 'Quantity'): HTMLInputElement
 function getControlByLabel(labelText: 'Group'): HTMLButtonElement
 function getControlByLabel(labelText: 'Auto group order'): HTMLElement
 function getControlByLabel(labelText: string): HTMLElement {
+  if (labelText === 'Name') {
+    return screen.getByRole('textbox', { name: /API Key Name/ })
+  }
   const label = [...document.querySelectorAll<HTMLLabelElement>('label')].find(
     (candidate) => candidate.textContent?.trim() === labelText
   )
@@ -203,78 +215,124 @@ afterEach(() => {
   }
 })
 
-describe('API keys mutate drawer Auto group integration', () => {
-  test('inherits the root Auto order and sends an empty override for every batch-created key', async () => {
-    const createdPayloads: Array<Record<string, unknown>> = []
-    installApiFixtures(createdPayloads)
-    await renderCreateDrawer()
-
-    const groupTrigger = getControlByLabel('Group')
-    expect(groupTrigger.textContent?.includes('auto')).toBe(true)
-    expect(
-      document.body.textContent?.includes(
-        'Using the complete global Auto order (2 groups)'
-      )
-    ).toBe(true)
-    expect(
-      [
-        ...document.querySelectorAll('[data-slot="global-auto-order-name"]'),
-      ].map((item) => item.textContent)
-    ).toEqual(['vip', 'default'])
-    expect(findButton('Restore global Auto', true).disabled).toBe(true)
-
-    changeInput(getControlByLabel('Name'), 'batch')
-    changeInput(getControlByLabel('Quantity'), '2')
-    fireEvent.click(findButton('Save changes', true))
-    await waitFor(() => expect(createdPayloads).toHaveLength(2))
-
-    expect(createdPayloads.length).toBe(2)
-    expect(createdPayloads[0]?.name).toBe('batch')
-    for (const payload of createdPayloads) {
-      expect(payload.group).toBe('auto')
-      expect(payload.auto_groups).toEqual([])
-      expect(payload.cross_group_retry).toBe(true)
-    }
+test('creating with Auto uses global routing without advanced controls', async () => {
+  const createdPayloads: Array<Record<string, unknown>> = []
+  installApiFixtures(createdPayloads)
+  await renderCreateDrawer()
+  expect(
+    screen.queryByRole('button', { name: 'Advanced Settings' })
+  ).not.toBeInTheDocument()
+  changeInput(getControlByLabel('Name'), 'auto-key')
+  fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+  await waitFor(() => expect(createdPayloads).toHaveLength(1))
+  expect(createdPayloads[0]).toMatchObject({
+    name: 'auto-key',
+    group: 'auto',
+    auto_groups: [],
+    cross_group_retry: true,
+    model_limits_enabled: false,
+    model_limits: '',
+    allow_ips: '',
   })
+})
 
-  test('preserves an unsaved custom order and mode after Auto to ordinary to Auto changes', async () => {
-    const createdPayloads: Array<Record<string, unknown>> = []
-    installApiFixtures(createdPayloads)
-    await renderCreateDrawer()
-
-    const autoOrderControl = getControlByLabel('Auto group order')
-    const addGroupTrigger = autoOrderControl.querySelector<HTMLButtonElement>(
-      'button[role="combobox"]'
-    )
-    if (!addGroupTrigger) {
-      throw new Error('Expected Auto group order combobox')
-    }
-    selectComboboxOption(addGroupTrigger, 'Priority access')
-
-    expect(
-      document.querySelector('button[aria-label="Remove vip"]')
-    ).toBeTruthy()
-    expect(document.body.textContent?.includes('1 / 3 groups selected')).toBe(
-      true
-    )
-    expect(findButton('Restore global Auto', true).disabled).toBe(false)
-
-    const groupTrigger = getControlByLabel('Group')
-    selectComboboxOption(groupTrigger, 'Standard access')
-    expect(document.querySelector('button[aria-label="Remove vip"]')).toBe(null)
-    selectComboboxOption(groupTrigger, 'Automatic routing')
-
-    expect(
-      document.querySelector('button[aria-label="Remove vip"]')
-    ).toBeTruthy()
-    expect(document.body.textContent?.includes('1 / 3 groups selected')).toBe(
-      true
-    )
-    expect(findButton('Restore global Auto', true).disabled).toBe(false)
-
-    changeInput(getControlByLabel('Name'), 'custom')
-    fireEvent.click(findButton('Save changes', true))
-    await waitFor(() => expect(createdPayloads).toHaveLength(1))
-    expect(createdPayloads[0]?.auto_groups).toEqual(['vip'])
+test('compact create dialog keeps advanced fields collapsed and preserves expiry and quota choices on submit', async () => {
+  const createdPayloads: Array<Record<string, unknown>> = []
+  installApiFixtures(createdPayloads)
+  await renderCreateDrawer()
+  expect(screen.getByRole('dialog', { name: 'Create API Key' })).toBeVisible()
+  expect(screen.queryByLabelText('Quantity')).not.toBeInTheDocument()
+  changeInput(getControlByLabel('Name'), 'limited')
+  selectComboboxOption(getControlByLabel('Group'), 'Standard access')
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Never expires' }))
+  expect(
+    screen.getByRole('checkbox', { name: 'Never expires' })
+  ).not.toBeChecked()
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Unlimited Quota' }))
+  const quota = screen.getByRole('spinbutton')
+  fireEvent.change(quota, { target: { value: '2' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+  await waitFor(() => expect(createdPayloads).toHaveLength(1))
+  expect(createdPayloads[0]).toMatchObject({
+    name: 'limited',
+    group: 'default',
+    unlimited_quota: false,
   })
+  expect(createdPayloads[0]?.expired_time).toBeGreaterThan(0)
+  expect(createdPayloads[0]?.remain_quota).toBeGreaterThan(0)
+})
+
+test('new key form requires a name and shows quota before expiry with unlimited defaults', async () => {
+  installApiFixtures([])
+  await renderCreateDrawer()
+  expect(screen.getByRole('textbox', { name: /API Key Name/ })).toHaveAttribute(
+    'aria-required',
+    'true'
+  )
+  const quota = screen.getByRole('checkbox', { name: 'Unlimited Quota' })
+  const expiry = screen.getByRole('checkbox', { name: 'Never expires' })
+  expect(quota).toBeChecked()
+  expect(expiry).toBeChecked()
+  expect(
+    quota.compareDocumentPosition(expiry) & Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy()
+  expect(screen.queryByText('Auto group order')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible()
+})
+
+test.each(['default', 'auto'])(
+  'editing basic fields preserves hidden restrictions for %s routing',
+  async (group) => {
+    installApiFixtures([])
+    const row: ApiKey = {
+      id: 7,
+      name: 'Restricted',
+      key: '',
+      status: 1,
+      remain_quota: 500000,
+      used_quota: 0,
+      unlimited_quota: false,
+      expired_time: -1,
+      created_time: 1,
+      accessed_time: 1,
+      group,
+      auto_groups: group === 'auto' ? ['retired-group'] : [],
+      cross_group_retry: false,
+      model_limits_enabled: true,
+      model_limits: 'gpt-5.1',
+      allow_ips: '10.0.0.0/8',
+    }
+    const get = apiClient.get
+    apiClient.get = async (url) =>
+      url === '/api/token/7' ? { data: { success: true, data: row } } : get(url)
+    const put = vi
+      .spyOn(api, 'put')
+      .mockResolvedValue({ data: { success: true } })
+    await renderCreateDrawer(row)
+    expect(
+      screen.queryByRole('button', { name: 'Advanced Settings' })
+    ).not.toBeInTheDocument()
+    changeInput(getControlByLabel('Name'), 'Renamed')
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(put).toHaveBeenCalled())
+    expect(put.mock.calls[0]?.[1]).toMatchObject({
+      id: 7,
+      name: 'Renamed',
+      model_limits_enabled: true,
+      model_limits: 'gpt-5.1',
+      allow_ips: '10.0.0.0/8',
+      auto_groups: group === 'auto' ? ['retired-group'] : [],
+    })
+  }
+)
+
+test('compact key form scrolls with the dialog only when the viewport is too short', async () => {
+  installApiFixtures([])
+  await renderCreateDrawer()
+  const dialog = screen.getByRole('dialog')
+  expect(dialog).toHaveClass('overflow-y-auto')
+  const form = screen
+    .getByRole('textbox', { name: /API Key Name/ })
+    .closest('form')
+  expect(form).not.toHaveClass('overflow-y-auto')
 })

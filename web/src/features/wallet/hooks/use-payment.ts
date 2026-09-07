@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import i18next from 'i18next'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 
 import {
@@ -29,13 +29,13 @@ import {
   requestStripePayment,
   isApiSuccess,
 } from '../api'
-import {
-  isStripePayment,
-  isWaffoPayment,
-  isWaffoPancakePayment,
-  submitPaymentForm,
-} from '../lib'
-import type { AmountRequest, AmountResponse } from '../types'
+import { isStripePayment, isWaffoPayment, isWaffoPancakePayment } from '../lib'
+import type {
+  AmountRequest,
+  AmountResponse,
+  InlineCheckout,
+  PaymentResponse,
+} from '../types'
 
 // ============================================================================
 // Payment Hook
@@ -83,23 +83,28 @@ export function usePayment() {
   const [amount, setAmount] = useState<number>(0)
   const [calculating, setCalculating] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [checkout, setCheckout] = useState<InlineCheckout | null>(null)
+  const [paymentError, setPaymentError] = useState('')
+  const calculationId = useRef(0)
+  const submitting = useRef(false)
 
   // Calculate payment amount
   const calculatePaymentAmount = useCallback(
     async (topupAmount: number, paymentType: string) => {
+      const requestId = ++calculationId.current
       try {
         setCalculating(true)
         const calculatedAmount = await requestPaymentAmount(
           topupAmount,
           paymentType
         )
-        setAmount(calculatedAmount)
+        if (requestId === calculationId.current) setAmount(calculatedAmount)
         return calculatedAmount
       } catch {
-        setAmount(0)
+        if (requestId === calculationId.current) setAmount(0)
         return 0
       } finally {
-        setCalculating(false)
+        if (requestId === calculationId.current) setCalculating(false)
       }
     },
     []
@@ -108,8 +113,11 @@ export function usePayment() {
   // Process payment
   const processPayment = useCallback(
     async (topupAmount: number, paymentType: string) => {
+      if (submitting.current) return false
+      submitting.current = true
       try {
         setProcessing(true)
+        setPaymentError('')
 
         const isStripe = isStripePayment(paymentType)
         const amount = Math.floor(topupAmount)
@@ -122,10 +130,13 @@ export function usePayment() {
           : await requestPayment({
               amount,
               payment_method: paymentType,
+              inline_qr: true,
             })
 
         if (!isApiSuccess(response)) {
-          toast.error(response.message || i18next.t('Payment request failed'))
+          setPaymentError(
+            i18next.t('Unable to create a payment QR code. Please try again.')
+          )
           return false
         }
 
@@ -137,21 +148,25 @@ export function usePayment() {
         }
 
         // Handle non-Stripe payment
-        if (!isStripe && response.data) {
-          const url = (response as unknown as { url?: string }).url
-          if (url) {
-            submitPaymentForm(url, response.data)
-            toast.success(i18next.t('Redirecting to payment page...'))
+        if (!isStripe) {
+          const inline = (response as PaymentResponse).checkout
+          if (inline && (inline.qrcode || inline.qr_image)) {
+            setCheckout(inline)
             return true
           }
         }
-
+        setPaymentError(
+          i18next.t('Unable to create a payment QR code. Please try again.')
+        )
         return false
       } catch {
-        toast.error(i18next.t('Payment request failed'))
+        setPaymentError(
+          i18next.t('Unable to create a payment QR code. Please try again.')
+        )
         return false
       } finally {
         setProcessing(false)
+        submitting.current = false
       }
     },
     []
@@ -161,6 +176,12 @@ export function usePayment() {
     amount,
     calculating,
     processing,
+    checkout,
+    paymentError,
+    resetCheckout: () => {
+      setCheckout(null)
+      setPaymentError('')
+    },
     calculatePaymentAmount,
     processPayment,
     setAmount,

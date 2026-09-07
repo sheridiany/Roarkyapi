@@ -25,8 +25,6 @@ export type HeaderNavModulesConfig = {
   home: boolean
   console: boolean
   pricing: HeaderNavAccessConfig
-  rankings: HeaderNavAccessConfig
-  docs: boolean
   about: boolean
   [key: string]: boolean | HeaderNavAccessConfig
 }
@@ -45,20 +43,10 @@ export const HEADER_NAV_DEFAULT: HeaderNavModulesConfig = {
     enabled: true,
     requireAuth: false,
   },
-  rankings: {
-    enabled: true,
-    requireAuth: false,
-  },
-  docs: true,
   about: true,
 }
 
 export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
-  chat: {
-    enabled: true,
-    playground: true,
-    chat: true,
-  },
   console: {
     enabled: true,
     detail: true,
@@ -97,7 +85,6 @@ const toBoolean = (value: unknown, fallback: boolean): boolean => {
 const cloneHeaderNavDefault = (): HeaderNavModulesConfig => ({
   ...HEADER_NAV_DEFAULT,
   pricing: { ...HEADER_NAV_DEFAULT.pricing },
-  rankings: { ...HEADER_NAV_DEFAULT.rankings },
 })
 
 const parseAccessModule = (
@@ -145,16 +132,12 @@ export function parseHeaderNavModules(
     const result: HeaderNavModulesConfig = {
       ...base,
       pricing: { ...base.pricing },
-      rankings: { ...base.rankings },
     }
 
     Object.entries(parsed).forEach(([key, raw]) => {
+      if (key === 'rankings' || key === 'docs') return
       if (key === 'pricing') {
         result.pricing = parseAccessModule(raw, base.pricing)
-        return
-      }
-      if (key === 'rankings') {
-        result.rankings = parseAccessModule(raw, base.rankings)
         return
       }
 
@@ -192,6 +175,7 @@ export function parseSidebarModulesAdmin(
     const result: SidebarModulesAdminConfig = {}
 
     Object.entries(parsed).forEach(([sectionKey, raw]) => {
+      if (sectionKey === 'chat') return
       if (!raw || typeof raw !== 'object') return
 
       const defaultSection = defaults[sectionKey] ?? { enabled: true }

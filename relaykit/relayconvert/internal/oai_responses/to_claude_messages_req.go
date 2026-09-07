@@ -56,6 +56,13 @@ func OpenAIResponsesRequestToClaudeMessages(c context.Context, info convmeta.Met
 	if toolChoice != nil || RawJSONPresent(req.ParallelToolCalls) {
 		claudeRequest.ToolChoice = sharedclaude.MapOpenAIToolChoice(toolChoice, ParallelToolCalls(req.ParallelToolCalls))
 	}
+	responseFormat, err := RequestTextToChatResponseFormat(req.Text)
+	if err != nil {
+		return nil, err
+	}
+	if err := sharedclaude.ApplyOpenAIJSONSchema(claudeRequest, responseFormat); err != nil {
+		return nil, err
+	}
 	sourceReasoning, err := reasoning.FromOpenAIResponses(req)
 	if err != nil {
 		return nil, reasoning.AsClientError(err)

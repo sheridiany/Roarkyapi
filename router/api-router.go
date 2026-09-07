@@ -39,10 +39,11 @@ func SetApiRouter(router *gin.Engine) {
 			perfMetricsRoute.GET("/summary", controller.GetPerfMetricsSummary)
 			perfMetricsRoute.GET("", controller.GetPerfMetrics)
 		}
-		apiRouter.GET("/rankings", middleware.HeaderNavModuleAuth("rankings"), controller.GetRankings)
 		apiRouter.GET("/verification", middleware.EmailVerificationRateLimit(), middleware.TurnstileCheck(), controller.SendEmailVerification)
 		apiRouter.GET("/reset_password", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), controller.SendPasswordResetEmail)
 		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, controller.ResetPassword)
+		apiRouter.POST("/registration-invitations/verify", middleware.CriticalRateLimit(), middleware.DisableCache(), anonymousRequestBodyLimit, controller.VerifyRegistrationInvitation)
+		apiRouter.POST("/oauth/registration/complete", middleware.CriticalRateLimit(), middleware.DisableCache(), anonymousRequestBodyLimit, controller.CompleteInvitedOAuthRegistration)
 		// OAuth routes - specific routes must come before :provider wildcard
 		apiRouter.POST("/oauth/state", middleware.CriticalRateLimit(), middleware.DisableCache(), middleware.TryUserAuth(), anonymousRequestBodyLimit, controller.GenerateOAuthCode)
 		apiRouter.POST("/oauth/email/bind", middleware.UserAuth(), middleware.CriticalRateLimit(), controller.EmailBind)
@@ -276,6 +277,12 @@ func SetApiRouter(router *gin.Engine) {
 				tokenUsageRoute.GET("/", controller.GetTokenUsage)
 			}
 		}
+
+		invitationRoute := apiRouter.Group("/registration-invitations")
+		invitationRoute.Use(middleware.AdminAuth())
+		invitationRoute.GET("/", controller.ListRegistrationInvitations)
+		invitationRoute.POST("/", controller.CreateRegistrationInvitations)
+		invitationRoute.DELETE("/:id", controller.RevokeRegistrationInvitation)
 
 		redemptionRoute := apiRouter.Group("/redemption")
 		redemptionRoute.Use(middleware.AdminAuth())

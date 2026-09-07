@@ -16,26 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Languages, Check } from 'lucide-react'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Languages, Globe } from '@/components/navigation-icons'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-  INTERFACE_LANGUAGE_OPTIONS,
-  normalizeInterfaceLanguage,
-} from '@/i18n/languages'
+import { normalizeInterfaceLanguage } from '@/i18n/languages'
 import { api } from '@/lib/api'
-import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher(props: { showLabel?: boolean }) {
   const { i18n, t } = useTranslation()
   const user = useAuthStore((s) => s.auth.user)
   const currentLanguage = normalizeInterfaceLanguage(i18n.language)
@@ -54,30 +44,25 @@ export function LanguageSwitcher() {
   )
 
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger
-        render={<Button variant='ghost' size='icon' className='h-9 w-9' />}
-      >
-        <Languages className='size-[1.2rem]' />
-        <span className='sr-only'>{t('Change language')}</span>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align='end'>
-        {INTERFACE_LANGUAGE_OPTIONS.map((lang) => (
-          <DropdownMenuItem
-            key={lang.code}
-            onClick={() => handleChangeLanguage(lang.code)}
-          >
-            {lang.label}
-            <Check
-              size={14}
-              className={cn(
-                'ms-auto',
-                currentLanguage !== lang.code && 'hidden'
-              )}
-            />
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      variant='ghost'
+      aria-label={t('Change language')}
+      className={props.showLabel ? 'h-9 gap-1.5 px-2' : 'h-9 w-9'}
+      onClick={() =>
+        handleChangeLanguage(currentLanguage === 'zhCN' ? 'en' : 'zhCN')
+      }
+    >
+      {props.showLabel ? (
+        <>
+          <Globe className='size-4' aria-hidden='true' />
+          <span className='text-xs font-normal uppercase'>
+            {currentLanguage === 'zhCN' ? 'ZH' : 'EN'}
+          </span>
+        </>
+      ) : (
+        <Languages className='size-[1.2rem]' aria-hidden='true' />
+      )}
+      <span className='sr-only'>{t('Change language')}</span>
+    </Button>
   )
 }

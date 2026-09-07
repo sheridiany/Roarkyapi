@@ -76,6 +76,7 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	var responseTextBuilder strings.Builder
 	imageCounter := &relaycommon.ImageGenerationCallCounter{}
 	imageCommitted := false
+	var streamErr *types.NewAPIError
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
 
@@ -86,14 +87,16 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 			sr.Error(err)
 			return
 		}
+
+		if streamResponse.Type == "error" || streamResponse.Type == "response.error" {
+			streamErr = responsesStreamError(data)
+			sr.Stop(streamErr)
+			return
+		}
 		sendResponsesStreamData(c, streamResponse, data)
 		switch streamResponse.Type {
 		case "response.completed", "response.done":
 			if streamResponse.Response != nil {
-				if streamResponse.Response.Usage != nil {
-					incomingUsage := relayconvert.NormalizeResponsesUsage(streamResponse.Response.Usage)
-					usage = dto.MergeUsageNonZero(usage, incomingUsage)
-				}
 				if !imageCommitted {
 					if relaycommon.IsNonBillableResponsesStatus(streamResponse.Response.Status) {
 						imageCounter.Reset()
@@ -137,7 +140,19 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 				}
 			}
 		}
+		switch streamResponse.Type {
+		case "response.completed", "response.done", "response.incomplete", "response.failed", "response.cancelled", "response.canceled":
+			if streamResponse.Response != nil && streamResponse.Response.Usage != nil {
+				incomingUsage := relayconvert.NormalizeResponsesUsage(streamResponse.Response.Usage)
+				usage = dto.MergeUsageNonZero(usage, incomingUsage)
+			}
+			sr.Done()
+		}
 	})
+
+	if streamErr != nil {
+		return nil, streamErr
+	}
 
 	if usage.CompletionTokens == 0 {
 		// 计算输出文本的 token 数量
@@ -159,4 +174,27 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	}
 
 	return usage, nil
+}
+
+// responsesStreamError recognizes both the native flat error event and upstream
+// wrappers that place the error under an error object.
+func responsesStreamError(data string) *types.NewAPIError {
+	var event struct {
+		types.OpenAIError
+		Error *types.OpenAIError `json:"error"`
+	}
+	if err := common.UnmarshalJsonStr(data, &event); err != nil {
+		return types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusBadGateway)
+	}
+	upstreamError := event.OpenAIError
+	if event.Error != nil {
+		upstreamError = *event.Error
+	}
+	if upstreamError.Message == "" {
+		upstreamError.Message = "upstream returned a Responses error event"
+	}
+	if upstreamError.Type == "" || upstreamError.Type == "error" {
+		upstreamError.Type = "server_error"
+	}
+	return types.WithOpenAIError(upstreamError, http.StatusBadGateway)
 }

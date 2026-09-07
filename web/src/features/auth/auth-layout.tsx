@@ -16,19 +16,49 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Link } from '@tanstack/react-router'
+import '@/styles/gateway.css'
+
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Home } from '@/features/home'
 import { useSystemConfig } from '@/hooks/use-system-config'
 
 type AuthLayoutProps = {
   children: React.ReactNode
+  modalTitle?: string
 }
 
-export function AuthLayout({ children }: AuthLayoutProps) {
+export function AuthLayout(props: AuthLayoutProps) {
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const { systemName, logo, loading } = useSystemConfig()
+
+  if (props.modalTitle) {
+    return (
+      <>
+        <Home />
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) void navigate({ to: '/' })
+          }}
+        >
+          <DialogContent
+            className='gateway-public gateway-auth-dialog'
+            aria-describedby={undefined}
+          >
+            <DialogTitle className='text-xl font-semibold tracking-tight'>
+              {props.modalTitle}
+            </DialogTitle>
+            {props.children}
+          </DialogContent>
+        </Dialog>
+      </>
+    )
+  }
 
   return (
     <div className='relative grid h-svh max-w-none'>
@@ -55,7 +85,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       </Link>
       <div className='container flex items-center pt-16 sm:pt-0'>
         <div className='mx-auto flex w-full flex-col justify-center space-y-2 px-4 py-8 sm:w-[480px] sm:p-8'>
-          {children}
+          {props.children}
         </div>
       </div>
     </div>

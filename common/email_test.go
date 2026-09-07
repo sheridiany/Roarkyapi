@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -560,4 +561,14 @@ func TestSendEmailExplicitStartTLSRejectsUntrustedCertificateByDefault(t *testin
 	err := SendEmail("Verification", "receiver@example.com", "<p>123456</p>")
 	require.Error(t, err)
 	require.Contains(t, fmt.Sprint(err), "certificate")
+}
+
+func TestVerificationEmailHTML(t *testing.T) {
+	content := VerificationEmailHTML(`Roark <API> & "team"`, "083129", 10)
+	assert.Contains(t, content, "Roark &lt;API&gt; &amp; &#34;team&#34;")
+	assert.Contains(t, content, ">083129</span>")
+	assert.Contains(t, content, "10 分钟内有效")
+	assert.NotContains(t, content, "<script")
+	assert.NotContains(t, content, "%!")
+	assert.NotContains(t, VerificationEmailHTML("Roark", "<img src=x onerror=alert(1)>", 5), "<img")
 }

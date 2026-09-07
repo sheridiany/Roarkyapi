@@ -11,7 +11,7 @@ func quotaConversion(exprOutput float64, snap *BillingSnapshot) float64 {
 	}
 	switch snap.ExprVersion {
 	default: // v1: coefficients are $/1M tokens prices
-		return exprOutput / 1_000_000 * snap.QuotaPerUnit
+		return exprOutput * (snap.QuotaPerUnit / 1_000_000)
 	}
 }
 

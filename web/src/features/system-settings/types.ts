@@ -179,7 +179,6 @@ export type ContentSettings = {
   DataExportEnabled: boolean
   DataExportDefaultTime: string
   DataExportInterval: number
-  Chats: string
   DrawingEnabled: boolean
   MjNotifyEnabled: boolean
   MjAccountFilterEnabled: boolean
@@ -254,8 +253,6 @@ export type ModelSettings = {
 export type BillingSettings = {
   QuotaForNewUser: number
   PreConsumedQuota: number
-  QuotaForInviter: number
-  QuotaForInvitee: number
   TopUpLink: string
   'general_setting.docs_link': string
   'quota_setting.enable_free_model_pre_consume': boolean
@@ -332,9 +329,6 @@ export type BillingSettings = {
   // section (saved via /api/option/waffo-pancake/save).
   WaffoPancakeStoreID: string
   WaffoPancakeProductID: string
-  'checkin_setting.enabled': boolean
-  'checkin_setting.min_quota': number
-  'checkin_setting.max_quota': number
 }
 
 export type OperationsSettings = {

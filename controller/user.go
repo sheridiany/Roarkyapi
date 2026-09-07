@@ -242,8 +242,12 @@ func Register(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserPasswordRegisterDisabled)
 		return
 	}
-	var user model.User
-	err := common.DecodeJson(c.Request.Body, &user)
+	var request struct {
+		model.User
+		InvitationCode string `json:"invitation_code"`
+	}
+	err := common.DecodeJson(c.Request.Body, &request)
+	user := request.User
 	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
@@ -257,6 +261,16 @@ func Register(c *gin.Context) {
 	if err := common.Validate.Struct(&user); err != nil {
 		common.ApiErrorI18n(c, i18n.MsgUserInputInvalid, map[string]any{"Error": err.Error()})
 		return
+	}
+	if common.InvitationOnlyEnabled {
+		if err := model.ValidateRegistrationInvitation(request.InvitationCode); err != nil {
+			if errors.Is(err, model.ErrRegistrationInvitationInvalid) {
+				common.ApiErrorI18n(c, "user.invitation_invalid")
+			} else {
+				common.ApiErrorI18n(c, i18n.MsgDatabaseError)
+			}
+			return
+		}
 	}
 	if common.EmailVerificationEnabled {
 		if user.Email == "" || user.VerificationCode == "" {
@@ -302,7 +316,16 @@ func Register(c *gin.Context) {
 	if common.EmailVerificationEnabled {
 		cleanUser.Email = user.Email
 	}
-	if err := cleanUser.Insert(inviterId); err != nil {
+	if common.InvitationOnlyEnabled {
+		err = cleanUser.InsertWithRegistrationInvitation(request.InvitationCode, inviterId)
+	} else {
+		err = cleanUser.Insert(inviterId)
+	}
+	if err != nil {
+		if errors.Is(err, model.ErrRegistrationInvitationInvalid) {
+			common.ApiErrorI18n(c, "user.invitation_invalid")
+			return
+		}
 		if errors.Is(err, model.ErrEmailAlreadyTaken) {
 			common.ApiErrorI18n(c, i18n.MsgUserEmailAlreadyTaken)
 			return

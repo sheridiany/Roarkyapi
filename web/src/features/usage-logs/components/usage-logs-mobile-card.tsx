@@ -25,7 +25,6 @@ import {
   textColorMap,
   type StatusVariant,
 } from '@/components/status-badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Empty,
   EmptyDescription,
@@ -34,7 +33,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
+import { UserAvatar } from '@/components/user-avatar'
 import { formatTimestampToDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -258,19 +257,11 @@ function MobileUserField({ log }: { log: UsageLog }) {
         setUserInfoDialogOpen(true)
       }}
     >
-      <Avatar className='ring-border/60 size-6 shrink-0 ring-1'>
-        <AvatarFallback
-          className={cn(
-            'text-[11px] font-semibold',
-            !sensitiveVisible && 'bg-muted text-muted-foreground'
-          )}
-          style={
-            sensitiveVisible ? getUserAvatarStyle(log.username) : undefined
-          }
-        >
-          {sensitiveVisible ? getUserAvatarFallback(log.username) : '•'}
-        </AvatarFallback>
-      </Avatar>
+      <UserAvatar
+        name={log.username}
+        masked={!sensitiveVisible}
+        className='size-6 shrink-0'
+      />
       <span className='text-foreground min-w-0 truncate text-sm'>
         {sensitiveVisible ? log.username : '••••'}
       </span>

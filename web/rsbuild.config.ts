@@ -53,6 +53,13 @@ export default defineConfig(({ envMode }) => {
       },
     },
     source: {
+      define: {
+        'import.meta.env.VITE_SUBSCRIPTION_PREVIEW': JSON.stringify(
+          !isProd && env.rawPublicVars.VITE_SUBSCRIPTION_PREVIEW === 'true'
+            ? 'true'
+            : 'false'
+        ),
+      },
       entry: {
         index: './src/main.tsx',
       },

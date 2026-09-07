@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { api } from '@/lib/api'
+import { isVisibleModel, isVisibleChannelType } from '@/lib/service-visibility'
 
 import type {
   GetModelsParams,
@@ -630,4 +631,43 @@ export async function checkClusterNameAvailability(name: string): Promise<{
     params: { name },
   })
   return res.data
+}
+
+/** Load the visible catalog before paginating it in the admin table. */
+export async function getVisibleModelCatalog(
+  params: Omit<SearchModelsParams, 'p' | 'page_size'>,
+  vendors: Vendor[]
+): Promise<Model[]> {
+  const vendorNames = new Map(vendors.map((vendor) => [vendor.id, vendor.name]))
+  const models: Model[] = []
+  let page = 1
+  let received = 0
+  while (true) {
+    const response = await searchModels({ ...params, p: page, page_size: 1000 })
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Failed to load models')
+    }
+    const items = response.data.items
+    for (const model of items) {
+      if (
+        isVisibleModel({
+          ...model,
+          vendor_name: model.vendor_id
+            ? vendorNames.get(model.vendor_id)
+            : undefined,
+        })
+      ) {
+        models.push({
+          ...model,
+          bound_channels: model.bound_channels?.filter((channel) =>
+            isVisibleChannelType(channel.type)
+          ),
+        })
+      }
+    }
+    received += items.length
+    if (items.length === 0 || received >= response.data.total) break
+    page += 1
+  }
+  return models
 }

@@ -22,7 +22,6 @@ import { useTranslation } from 'react-i18next'
 import { useStatus } from '@/hooks/use-status'
 
 import { AuthLayout } from '../auth-layout'
-import { TermsFooter } from '../components/terms-footer'
 import { UserAuthForm } from './components/user-auth-form'
 
 export function SignIn() {
@@ -31,15 +30,14 @@ export function SignIn() {
   const { status } = useStatus()
 
   return (
-    <AuthLayout>
-      <div className='w-full space-y-8'>
+    <AuthLayout modalTitle={t('Sign in')}>
+      <div className='gateway-auth-content w-full space-y-5'>
+        <UserAuthForm redirectTo={redirect} />
+
         <div className='space-y-2'>
-          <h2 className='text-center text-2xl font-semibold tracking-tight sm:text-left'>
-            {t('Sign in')}
-          </h2>
           {!status?.self_use_mode_enabled &&
             status?.register_enabled !== false && (
-              <p className='text-muted-foreground text-left text-sm sm:text-base'>
+              <p className='text-muted-foreground text-center text-[13px]'>
                 {t("Don't have an account?")}{' '}
                 <Link
                   to='/sign-up'
@@ -47,18 +45,9 @@ export function SignIn() {
                 >
                   {t('Sign up')}
                 </Link>
-                .
               </p>
             )}
         </div>
-
-        <UserAuthForm redirectTo={redirect} />
-
-        <TermsFooter
-          variant='sign-in'
-          status={status}
-          className='text-center'
-        />
       </div>
     </AuthLayout>
   )

@@ -23,10 +23,21 @@ import {
   DASHBOARD_SECTION_IDS,
   DASHBOARD_DEFAULT_SECTION,
 } from '@/features/dashboard/section-registry'
+import { useAuthStore } from '@/stores/auth-store'
 
 export const Route = createFileRoute('/_authenticated/dashboard/$section')({
   beforeLoad: ({ params }) => {
     const validSections = DASHBOARD_SECTION_IDS as unknown as string[]
+    if (
+      (useAuthStore.getState().auth.user?.role ?? 1) < 10 &&
+      params.section !== 'overview'
+    ) {
+      throw redirect({
+        to: '/dashboard/$section',
+        params: { section: 'overview' },
+        replace: true,
+      })
+    }
     if (!validSections.includes(params.section)) {
       throw redirect({
         to: '/dashboard/$section',

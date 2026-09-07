@@ -31,7 +31,6 @@ import {
   getChatMessageRenderState,
   getEditingMessageContent,
   getMessageAlignment,
-  getPreviousUserMessage,
   isErrorMessage,
 } from '../../lib'
 import type {
@@ -52,7 +51,6 @@ interface PlaygroundChatProps {
   onRegenerateMessage?: (message: MessageType) => void
   onEditMessage?: (message: MessageType) => void
   onDeleteMessage?: (message: MessageType) => void
-  onSelectPrompt?: (prompt: string) => void
   isGenerating?: boolean
   isLoadingMessages?: boolean
   editingKey?: string | null
@@ -66,9 +64,7 @@ export function PlaygroundChat({
   messages,
   onCopyMessage,
   onRegenerateMessage,
-  onEditMessage,
   onDeleteMessage,
-  onSelectPrompt,
   isGenerating = false,
   isLoadingMessages = false,
   editingKey,
@@ -80,28 +76,11 @@ export function PlaygroundChat({
   const { t } = useTranslation()
   const [editText, setEditText] = useState('')
   const [originalText, setOriginalText] = useState('')
-  const [sourceMessageKeys, setSourceMessageKeys] = useState<
-    ReadonlySet<string>
-  >(() => new Set())
   const visibleMessageOffset = Math.max(
     0,
     messages.length - MAX_RENDERED_HISTORY_MESSAGES
   )
   const visibleMessages = messages.slice(visibleMessageOffset)
-
-  function handleToggleMessageSource(message: MessageType): void {
-    setSourceMessageKeys((currentKeys) => {
-      const nextKeys = new Set(currentKeys)
-
-      if (nextKeys.has(message.key)) {
-        nextKeys.delete(message.key)
-      } else {
-        nextKeys.add(message.key)
-      }
-
-      return nextKeys
-    })
-  }
 
   useEffect(() => {
     if (!editingKey) return
@@ -121,11 +100,7 @@ export function PlaygroundChat({
       editingKey
     )
     const isError = isErrorMessage(message)
-    const previousUserMessage = isError
-      ? getPreviousUserMessage(messages, messageIndex)
-      : null
     const alignment = getMessageAlignment(message, messageLayoutMode)
-    const isSourceVisible = sourceMessageKeys.has(message.key)
 
     return (
       <Message
@@ -152,16 +127,12 @@ export function PlaygroundChat({
                   message={message}
                   onCopy={onCopyMessage}
                   onRegenerate={onRegenerateMessage}
-                  onToggleSource={handleToggleMessageSource}
-                  onEdit={onEditMessage}
                   onDelete={onDeleteMessage}
-                  isSourceVisible={isSourceVisible}
                   isGenerating={isGenerating}
                   alwaysVisible={alwaysShowActions}
                   className='mt-1.5'
                 />
               }
-              isSourceVisible={isSourceVisible}
               message={message}
               errorActions={
                 isError ? (
@@ -170,11 +141,6 @@ export function PlaygroundChat({
                     onRetry={
                       onRegenerateMessage
                         ? () => onRegenerateMessage(message)
-                        : undefined
-                    }
-                    onEditPrompt={
-                      onEditMessage && previousUserMessage
-                        ? () => onEditMessage(previousUserMessage)
                         : undefined
                     }
                     onDelete={
@@ -193,10 +159,8 @@ export function PlaygroundChat({
     )
   })
 
-  if (visibleMessages.length === 0 && onSelectPrompt) {
-    chatContent = [
-      <PlaygroundEmptyState key='empty' onSelectPrompt={onSelectPrompt} />,
-    ]
+  if (visibleMessages.length === 0) {
+    chatContent = [<PlaygroundEmptyState key='empty' />]
   }
 
   if (isLoadingMessages) {

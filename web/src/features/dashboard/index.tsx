@@ -37,7 +37,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 import { ModelsChartPreferences } from './components/models/models-chart-preferences'
 import { ModelsFilter } from './components/models/models-filter-dialog'
-import { OverviewDashboard } from './components/overview/overview-dashboard'
+import { GatewayOverview } from './components/overview/gateway-overview'
 import { DEFAULT_TIME_GRANULARITY } from './constants'
 import {
   buildDefaultDashboardFilters,
@@ -178,7 +178,7 @@ function PerformanceOverviewFallback() {
 
 const SECTION_META: Record<DashboardSectionId, { titleKey: string }> = {
   overview: {
-    titleKey: 'Overview',
+    titleKey: 'Data Analysis',
   },
   models: {
     titleKey: 'Model Call Analytics',
@@ -196,6 +196,9 @@ export function Dashboard() {
   const navigate = useNavigate()
   const params = route.useParams()
   const userRole = useAuthStore((state) => state.auth.user?.role)
+  const userName = useAuthStore(
+    (state) => state.auth.user?.display_name || state.auth.user?.username
+  )
   const activeSection = (params.section ??
     DASHBOARD_DEFAULT_SECTION) as DashboardSectionId
 
@@ -317,8 +320,27 @@ export function Dashboard() {
     ) : null
   const sectionActions = modelActions ?? flowActions
 
+  if (!isAdmin) {
+    return (
+      <SectionPageLayout
+        description={t('Welcome back, {{name}}', { name: userName })}
+      >
+        <SectionPageLayout.Title>{t('Data Analysis')}</SectionPageLayout.Title>
+        <SectionPageLayout.Content>
+          <GatewayOverview />
+        </SectionPageLayout.Content>
+      </SectionPageLayout>
+    )
+  }
+
   return (
-    <SectionPageLayout>
+    <SectionPageLayout
+      description={
+        activeSection === 'overview'
+          ? t('Welcome back, {{name}}', { name: userName })
+          : undefined
+      }
+    >
       <SectionPageLayout.Title>{t(meta.titleKey)}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <div className='space-y-3 sm:space-y-4'>
@@ -344,7 +366,7 @@ export function Dashboard() {
               )}
             </div>
           )}
-          {activeSection === 'overview' && <OverviewDashboard />}
+          {activeSection === 'overview' && <GatewayOverview />}
           {activeSection === 'models' && (
             <>
               <FadeIn>
