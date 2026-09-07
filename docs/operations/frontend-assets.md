@@ -10,10 +10,12 @@ Nginx `/static/` 优先读取 `/var/www/roarkapi/static/`，不存在的资源�
 
 ## 后续发布必须执行
 
-完成前端构建后，将 `web/dist/static/` 合并上传到 `/var/www/roarkapi/static/`，再切换应用二进制。必须保留旧文件，禁止使用 `rsync --delete` 或清空目录。可在已配置生产 SSH 连接的环境执行：
+完成前端构建后，将 `web/dist/static/` 合并上传到 `/var/www/roarkapi/static/`，再切换应用二进制。必须保留旧文件，禁止删除旧资源或清空目录。生产未安装 rsync，可在已配置生产 SSH 连接的环境执行：
 
 ```sh
-rsync -az web/dist/static/ root@64.186.225.51:/var/www/roarkapi/static/
+tar -czf /tmp/roark-static.tar.gz -C web/dist static
+scp /tmp/roark-static.tar.gz root@64.186.225.51:/opt/roarkapi/releases/
+ssh root@64.186.225.51 'tar --skip-old-files -xzf /opt/roarkapi/releases/roark-static.tar.gz -C /var/www/roarkapi'
 ```
 
 不要覆盖同名而内容不同的资源。至少保留最近两版和过去 30 天的资源；清理须同时核对线上访问记录，不能随二进制替换而删除旧资源。
