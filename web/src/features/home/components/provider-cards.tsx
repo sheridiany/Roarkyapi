@@ -24,7 +24,8 @@ import XAI from '@lobehub/icons/es/XAI/components/Mono'
 import { ProviderCardArtwork } from './provider-card-artwork'
 
 // Official text/reasoning/coding model releases checked on 2026-09-06.
-// Excludes audio/image-only models, aliases, and restricted cybersecurity models.
+// Includes the enabled image generation model; excludes audio-only models,
+// aliases, and restricted cybersecurity models.
 // Sources: https://developers.openai.com/api/docs/models/all
 // https://platform.claude.com/docs/en/release-notes/overview
 // https://ai.google.dev/gemini-api/docs/models
@@ -38,8 +39,9 @@ const providers = [
       'GPT-5.6 Terra',
       'GPT-5.6 Luna',
       'GPT-5.5',
+      'GPT Image 2',
     ],
-    family: 'GPT / Codex',
+    family: 'ChatGPT',
     icon: OpenAI,
     tone: 'openai',
     alphabet: 'OPENAI01{}',
@@ -62,11 +64,7 @@ const providers = [
   },
   {
     name: 'Gemini',
-    models: [
-      'Gemini 3.8 Flash',
-      'Gemini 3.7 Flash',
-      'Gemini 3.5 Flash-Lite',
-    ],
+    models: ['Gemini 3.8 Flash', 'Gemini 3.7 Flash', 'Gemini 3.5 Flash-Lite'],
     family: 'Gemini',
     icon: Gemini,
     tone: 'gemini',
@@ -75,10 +73,7 @@ const providers = [
   },
   {
     name: 'xAI',
-    models: [
-      'Grok 4.6',
-      'Grok 4.5',
-    ],
+    models: ['Grok 4.6', 'Grok 4.5'],
     family: 'Grok',
     icon: XAI,
     tone: 'xai',

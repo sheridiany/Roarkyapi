@@ -22,6 +22,7 @@ import { isTokenBasedModel } from './model-helpers'
 
 export type BillingModeLabelKey =
   | 'Per Request'
+  | 'Per Image'
   | 'Dynamic Pricing'
   | 'Token-based'
   | 'Task billing'
@@ -34,5 +35,13 @@ export function getBillingModeLabelKey(
   if (hasTaskUsageSchema(model)) return 'Task billing'
   if (isDynamicPricingModel(model)) return 'Dynamic Pricing'
   if (isTokenBasedModel(model)) return 'Token-based'
+  if (getFixedPriceUnitKey(model) === 'image') return 'Per Image'
   return 'Per Request'
+}
+
+/** The fixed price for Images API models is multiplied by image count. */
+export function getFixedPriceUnitKey(model: PricingModel): 'image' | 'request' {
+  return model.supported_endpoint_types?.includes('image-generation')
+    ? 'image'
+    : 'request'
 }

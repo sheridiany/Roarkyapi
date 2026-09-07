@@ -22,6 +22,7 @@ import {
   parseTiersFromExpr,
   splitBillingExprAndRequestRules,
 } from '@/features/pricing/lib/billing-expr'
+import { getFixedPriceUnitKey } from '@/features/pricing/lib/billing-mode'
 import {
   formatDynamicUnitPrice,
   isDynamicPricingModel,
@@ -136,7 +137,7 @@ export function GatewayModelPriceRows({
       {!isUnconfiguredTaskUsageModel(model) && model.quota_type === 1 && (
         <td colSpan={4}>
           {formatRequestPrice(model, false, priceRate, usdExchangeRate, group)}{' '}
-          / {t('request')}
+          / {t(getFixedPriceUnitKey(model))}
         </td>
       )}
       {!isUnconfiguredTaskUsageModel(model) &&

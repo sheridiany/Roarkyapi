@@ -97,7 +97,9 @@ export function GatewayModels(props: { showCatalogLink?: boolean }) {
           ))}
         </div>
       </div>
-      <p className='gateway-price-note'>{t('Per 1M tokens')}</p>
+      <p className='gateway-price-note'>
+        {t('Token prices per 1M tokens. Fixed prices use the unit shown.')}
+      </p>
       {data.isLoading && (
         <p role='status' className='gateway-empty'>
           {t('Loading...')}

@@ -300,6 +300,15 @@ describe('task dynamic pricing', () => {
       ),
       'Dynamic Pricing'
     )
+    assert.equal(
+      getBillingModeLabelKey(
+        pricingModel({
+          quota_type: 1,
+          supported_endpoint_types: ['image-generation'],
+        })
+      ),
+      'Per Image'
+    )
     assert.equal(getBillingModeLabelKey(pricingModel({})), 'Token-based')
     assert.equal(
       getBillingModeLabelKey(pricingModel({ quota_type: 1 })),

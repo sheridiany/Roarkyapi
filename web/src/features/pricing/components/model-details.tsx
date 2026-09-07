@@ -54,6 +54,7 @@ import {
   formatUptimePct,
   getSuccessRateTextClass,
 } from '@/features/performance-metrics/lib/format'
+import { getFixedPriceUnitKey } from '@/features/pricing/lib/billing-mode'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
@@ -1255,7 +1256,10 @@ function GroupPricingSection(props: {
             : [
                 {
                   id: 'price',
-                  header: t('Price'),
+                  header:
+                    getFixedPriceUnitKey(props.model) === 'image'
+                      ? t('Per Image')
+                      : t('Price'),
                   className: `${thClass} text-right`,
                   cellClassName: 'py-2.5 text-right font-mono',
                   cell: renderFixedGroupPrice,

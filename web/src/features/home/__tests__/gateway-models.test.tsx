@@ -61,6 +61,7 @@ const pricing = {
     {
       id: 3,
       model_name: 'gpt-image-request',
+      supported_endpoint_types: ['image-generation'],
       quota_type: 1,
       model_price: 0.04,
       model_ratio: 0,
@@ -215,4 +216,29 @@ describe('Homepage model catalog', () => {
     expect(await screen.findByRole('table', { name: /Codex/ })).toBeVisible()
     request.mockRestore()
   })
+})
+
+it('shows fixed image pricing per image after applying the selected group ratio', async () => {
+  const original = pricing.data[2]
+  pricing.data[2] = {
+    id: 3,
+    quota_type: 1,
+    model_ratio: 0,
+    completion_ratio: 0,
+    enable_groups: ['Codex'],
+    model_name: 'gpt-image-2',
+    model_price: 0.248,
+    supported_endpoint_types: ['image-generation'],
+  }
+  const ratio = pricing.group_ratio.Codex
+  pricing.group_ratio.Codex = 0.5
+  try {
+    await renderModels()
+    expect(
+      await screen.findByRole('row', { name: /gpt-image-2/ })
+    ).toHaveTextContent('$0.124 / image')
+  } finally {
+    pricing.data[2] = original
+    pricing.group_ratio.Codex = ratio
+  }
 })

@@ -89,7 +89,7 @@ it.each([false, true])(
     ).toBeVisible()
     expect(screen.getAllByRole('article')).toHaveLength(4)
     for (const [name, count] of [
-      ['OpenAI', 5],
+      ['OpenAI', 6],
       ['Anthropic', 5],
       ['Gemini', 3],
       ['xAI', 2],
@@ -98,6 +98,7 @@ it.each([false, true])(
       expect(card).toBeVisible()
       expect(within(card).getAllByRole('listitem')).toHaveLength(count)
     }
+    expect(screen.getByRole('listitem', { name: 'GPT Image 2' })).toBeVisible()
     expect(screen.getByRole('main')).toHaveAttribute('lang', 'en')
     expect(
       screen.getByRole('link', { name: 'Privacy Policy' })
