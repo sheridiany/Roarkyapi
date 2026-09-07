@@ -24,8 +24,11 @@ import { Route as authSignUpRouteImport } from './routes/(auth)/sign-up'
 import { Route as errors401RouteImport } from './routes/(errors)/401'
 import { Route as errors403RouteImport } from './routes/(errors)/403'
 import { Route as errors404RouteImport } from './routes/(errors)/404'
+import { Route as errors429RouteImport } from './routes/(errors)/429'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
+import { Route as errors502RouteImport } from './routes/(errors)/502'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
+import { Route as errors504RouteImport } from './routes/(errors)/504'
 import { Route as AuthenticatedSystemSettingsRouteRouteImport } from './routes/_authenticated/system-settings/route'
 import { Route as OauthProviderRouteImport } from './routes/oauth/$provider'
 import { Route as SetupIndexRouteImport } from './routes/setup/index'
@@ -140,14 +143,29 @@ const errors404Route = errors404RouteImport.update({
   path: '/404',
   getParentRoute: () => rootRouteImport,
 } as any)
+const errors429Route = errors429RouteImport.update({
+  id: '/(errors)/429',
+  path: '/429',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const errors500Route = errors500RouteImport.update({
   id: '/(errors)/500',
   path: '/500',
   getParentRoute: () => rootRouteImport,
 } as any)
+const errors502Route = errors502RouteImport.update({
+  id: '/(errors)/502',
+  path: '/502',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const errors503Route = errors503RouteImport.update({
   id: '/(errors)/503',
   path: '/503',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const errors504Route = errors504RouteImport.update({
+  id: '/(errors)/504',
+  path: '/504',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSystemSettingsRouteRoute =
@@ -400,8 +418,11 @@ export interface FileRoutesByFullPath {
   '/401': typeof errors401Route
   '/403': typeof errors403Route
   '/404': typeof errors404Route
+  '/429': typeof errors429Route
   '/500': typeof errors500Route
+  '/502': typeof errors502Route
   '/503': typeof errors503Route
+  '/504': typeof errors504Route
   '/oauth/$provider': typeof OauthProviderRoute
   '/setup/': typeof SetupIndexRoute
   '/user/reset': typeof authUserResetRoute
@@ -456,8 +477,11 @@ export interface FileRoutesByTo {
   '/401': typeof errors401Route
   '/403': typeof errors403Route
   '/404': typeof errors404Route
+  '/429': typeof errors429Route
   '/500': typeof errors500Route
+  '/502': typeof errors502Route
   '/503': typeof errors503Route
+  '/504': typeof errors504Route
   '/oauth/$provider': typeof OauthProviderRoute
   '/setup': typeof SetupIndexRoute
   '/user/reset': typeof authUserResetRoute
@@ -516,8 +540,11 @@ export interface FileRoutesById {
   '/(errors)/401': typeof errors401Route
   '/(errors)/403': typeof errors403Route
   '/(errors)/404': typeof errors404Route
+  '/(errors)/429': typeof errors429Route
   '/(errors)/500': typeof errors500Route
+  '/(errors)/502': typeof errors502Route
   '/(errors)/503': typeof errors503Route
+  '/(errors)/504': typeof errors504Route
   '/oauth/$provider': typeof OauthProviderRoute
   '/setup/': typeof SetupIndexRoute
   '/(auth)/user/reset': typeof authUserResetRoute
@@ -575,8 +602,11 @@ export interface FileRouteTypes {
     | '/401'
     | '/403'
     | '/404'
+    | '/429'
     | '/500'
+    | '/502'
     | '/503'
+    | '/504'
     | '/oauth/$provider'
     | '/setup/'
     | '/user/reset'
@@ -631,8 +661,11 @@ export interface FileRouteTypes {
     | '/401'
     | '/403'
     | '/404'
+    | '/429'
     | '/500'
+    | '/502'
     | '/503'
+    | '/504'
     | '/oauth/$provider'
     | '/setup'
     | '/user/reset'
@@ -690,8 +723,11 @@ export interface FileRouteTypes {
     | '/(errors)/401'
     | '/(errors)/403'
     | '/(errors)/404'
+    | '/(errors)/429'
     | '/(errors)/500'
+    | '/(errors)/502'
     | '/(errors)/503'
+    | '/(errors)/504'
     | '/oauth/$provider'
     | '/setup/'
     | '/(auth)/user/reset'
@@ -742,8 +778,11 @@ export interface RootRouteChildren {
   errors401Route: typeof errors401Route
   errors403Route: typeof errors403Route
   errors404Route: typeof errors404Route
+  errors429Route: typeof errors429Route
   errors500Route: typeof errors500Route
+  errors502Route: typeof errors502Route
   errors503Route: typeof errors503Route
+  errors504Route: typeof errors504Route
   OauthProviderRoute: typeof OauthProviderRoute
   SetupIndexRoute: typeof SetupIndexRoute
 }
@@ -855,6 +894,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof errors404RouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(errors)/429': {
+      id: '/(errors)/429'
+      path: '/429'
+      fullPath: '/429'
+      preLoaderRoute: typeof errors429RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(errors)/500': {
       id: '/(errors)/500'
       path: '/500'
@@ -862,11 +908,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof errors500RouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(errors)/502': {
+      id: '/(errors)/502'
+      path: '/502'
+      fullPath: '/502'
+      preLoaderRoute: typeof errors502RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(errors)/503': {
       id: '/(errors)/503'
       path: '/503'
       fullPath: '/503'
       preLoaderRoute: typeof errors503RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(errors)/504': {
+      id: '/(errors)/504'
+      path: '/504'
+      fullPath: '/504'
+      preLoaderRoute: typeof errors504RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/system-settings': {
@@ -1300,8 +1360,11 @@ const rootRouteChildren: RootRouteChildren = {
   errors401Route: errors401Route,
   errors403Route: errors403Route,
   errors404Route: errors404Route,
+  errors429Route: errors429Route,
   errors500Route: errors500Route,
+  errors502Route: errors502Route,
   errors503Route: errors503Route,
+  errors504Route: errors504Route,
   OauthProviderRoute: OauthProviderRoute,
   SetupIndexRoute: SetupIndexRoute,
 }

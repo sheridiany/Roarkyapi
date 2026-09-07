@@ -118,7 +118,8 @@
   background: #202b25;
   box-shadow: 0 0 0 3px #202b2510;
 }
-.lost-space a:focus-visible {
+.lost-space a:focus-visible,
+.lost-space button:focus-visible {
   outline: 1px solid #e3e9e6;
   outline-offset: 5px;
 }
@@ -205,5 +206,44 @@
   }
   .lost-space-astronaut {
     will-change: auto;
+  }
+}
+
+.lost-space-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.lost-space-actions button {
+  cursor: pointer;
+}
+.lost-space-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 14px;
+  color: #aeb9b2;
+  font-size: 13px;
+  transition: color 160ms ease;
+}
+.lost-space-secondary:hover {
+  color: #f1f5f3;
+}
+.lost-space-secondary .lost-space-home-dot {
+  display: none;
+}
+.lost-space-compact {
+  min-height: 360px;
+}
+.lost-space-compact .lost-space-number {
+  --pixel: 10px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lost-space-secondary {
+    transition: none;
   }
 }

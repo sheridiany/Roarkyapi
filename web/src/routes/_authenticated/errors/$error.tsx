@@ -18,9 +18,6 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { createFileRoute } from '@tanstack/react-router'
 
-import { Header } from '@/components/layout'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { ThemeSwitch } from '@/components/theme-switch'
 import { ForbiddenError } from '@/features/errors/forbidden'
 import { GeneralError } from '@/features/errors/general-error'
 import { MaintenanceError } from '@/features/errors/maintenance-error'
@@ -43,17 +40,5 @@ function RouteComponent() {
   }
   const ErrorComponent = errorMap[error] || NotFoundError
 
-  return (
-    <>
-      <Header>
-        <div className='ms-auto flex items-center md:space-x-4'>
-          <ThemeSwitch />
-          <ProfileDropdown />
-        </div>
-      </Header>
-      <div className='flex-1 [&>div]:h-full'>
-        <ErrorComponent />
-      </div>
-    </>
-  )
+  return <ErrorComponent />
 }

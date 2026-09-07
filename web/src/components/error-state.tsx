@@ -53,7 +53,7 @@ export function ErrorState(props: ErrorStateProps) {
             <Icon className='text-destructive size-6' />
           </EmptyMedia>
           <EmptyTitle>
-            {props.title ?? t('Oops! Something went wrong')}
+            {props.title ?? t('Unable to load this content')}
           </EmptyTitle>
           {props.description != null && (
             <EmptyDescription>{props.description}</EmptyDescription>
