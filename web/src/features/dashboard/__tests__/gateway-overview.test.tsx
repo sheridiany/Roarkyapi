@@ -25,6 +25,7 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { GatewayOverview } from '../components/overview/gateway-overview'
+import OverviewUsageChart from '../components/overview/overview-usage-chart'
 
 vi.mock('@visactor/react-vchart', () => ({ VChart: () => null }))
 let client: QueryClient
@@ -165,4 +166,36 @@ it('shows a retry action on usage failure and an empty state after a successful 
   expect(
     screen.getByText('7-day requests').nextElementSibling
   ).toHaveTextContent('0')
+})
+
+it('shows every model with its request count and share when more than five models have usage', () => {
+  const start = new Date(2026, 8, 7).getTime() / 1000
+  const models = [
+    'gpt-6-astra',
+    'gpt-5.6-terra',
+    'claude-sonnet-5',
+    'gpt-5.5',
+    'gemini-3.8-flash',
+    'gpt-image-2',
+  ]
+  render(
+    <OverviewUsageChart
+      data={models.map((model_name) => ({
+        created_at: start,
+        model_name,
+        count: 1,
+        quota: 1,
+      }))}
+      loading={false}
+      view='Model distribution'
+      start={start}
+      days={7}
+    />
+  )
+  const list = screen.getByRole('list', { name: 'Model distribution' })
+  expect(within(list).getAllByRole('listitem')).toHaveLength(6)
+  for (const model of models)
+    expect(within(list).getByText(model)).toBeVisible()
+  expect(within(list).getAllByText('16.7%')).toHaveLength(6)
+  expect(within(list).queryByText('Other')).not.toBeInTheDocument()
 })

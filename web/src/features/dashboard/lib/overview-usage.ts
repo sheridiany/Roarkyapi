@@ -62,14 +62,10 @@ export function buildOverviewUsage(
   const distribution = [...models.values()].sort(
     (a, b) => b.requests - a.requests || a.model.localeCompare(b.model)
   )
-  const topModels = distribution.slice(0, 5)
-  const remainder = distribution.slice(5)
   return {
     daily,
     ranking,
-    topModels,
-    otherRequests: remainder.reduce((sum, row) => sum + row.requests, 0),
-    otherModelCount: remainder.length,
+    distribution,
     totalRequests: ranking.reduce((sum, row) => sum + row.requests, 0),
     totalQuota: ranking.reduce((sum, row) => sum + row.quota, 0),
     recordedDays: daily.filter((day) => day.requests !== null).length,

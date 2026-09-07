@@ -236,25 +236,10 @@ export default function OverviewUsageChart(props: OverviewUsageChartProps) {
               className='gateway-usage-distribution'
               aria-label={t('Model distribution')}
             >
-              {[
-                ...all.topModels.map((row) => ({
-                  ...row,
-                  name: row.model || t('Unknown'),
-                })),
-                ...(all.otherModelCount > 0
-                  ? [
-                      {
-                        model: '__other__',
-                        name: t('Other'),
-                        requests: all.otherRequests,
-                        quota: 0,
-                      },
-                    ]
-                  : []),
-              ].map((row) => (
+              {all.distribution.map((row) => (
                 <li key={row.model}>
                   <div>
-                    <span>{row.name}</span>
+                    <span>{row.model || t('Unknown')}</span>
                     <span>
                       {row.requests.toLocaleString()}{' '}
                       <small>

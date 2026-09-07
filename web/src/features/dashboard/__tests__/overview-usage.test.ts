@@ -66,7 +66,7 @@ describe('overview usage summaries', () => {
     ])
   })
 
-  it('keeps the top five request models plus an exact remainder and ranks spending separately', () => {
+  it('keeps every model in request order when more than five models have usage', () => {
     const result = buildOverviewUsage(
       [
         { created_at: day(0), model_name: 'a', count: 1, quota: 700 },
@@ -80,15 +80,18 @@ describe('overview usage summaries', () => {
       start,
       7
     )
-    expect(result.topModels.map((row) => row.model)).toEqual([
+    expect(result.distribution.map((row) => row.model)).toEqual([
       'g',
       'f',
       'e',
       'd',
       'c',
+      'b',
+      'a',
     ])
-    expect(result.otherRequests).toBe(3)
-    expect(result.otherModelCount).toBe(2)
+    expect(result.distribution.map((row) => row.requests)).toEqual([
+      7, 6, 5, 4, 3, 2, 1,
+    ])
     expect(result.totalRequests).toBe(28)
     expect(result.totalQuota).toBe(2800)
     expect(result.ranking.map((row) => row.model)).toEqual([
@@ -109,7 +112,7 @@ describe('overview usage summaries', () => {
       result.daily.every((row) => row.requests === null && row.quota === null)
     ).toBe(true)
     expect(result.ranking).toEqual([])
-    expect(result.otherModelCount).toBe(0)
+    expect(result.distribution).toEqual([])
     expect(result.recordedDays).toBe(0)
   })
 })
