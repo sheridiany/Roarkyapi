@@ -384,16 +384,13 @@ func (m *MediaContent) GetFile() *MessageFile {
 }
 
 func (m *MediaContent) GetVideoUrl() *MessageVideoUrl {
-	if m.VideoUrl != nil {
-		if _, ok := m.VideoUrl.(*MessageVideoUrl); ok {
-			return m.VideoUrl.(*MessageVideoUrl)
-		}
-		if itemMap, ok := m.VideoUrl.(map[string]any); ok {
-			out := &MessageVideoUrl{
-				Url: kitutil.Interface2String(itemMap["url"]),
-			}
-			return out
-		}
+	switch video := m.VideoUrl.(type) {
+	case *MessageVideoUrl:
+		return video
+	case string:
+		return &MessageVideoUrl{Url: video}
+	case map[string]any:
+		return &MessageVideoUrl{Url: kitutil.Interface2String(video["url"])}
 	}
 	return nil
 }
@@ -670,13 +667,10 @@ func (m *Message) ParseContent() []MediaContent {
 				}
 			}
 		case ContentTypeVideoUrl:
-			if videoUrl, ok := contentItem["video_url"].(string); ok {
-				contentList = append(contentList, MediaContent{
-					Type: ContentTypeVideoUrl,
-					VideoUrl: &MessageVideoUrl{
-						Url: videoUrl,
-					},
-				})
+			media := MediaContent{Type: ContentTypeVideoUrl, VideoUrl: contentItem["video_url"]}
+			if video := media.GetVideoUrl(); video != nil && video.Url != "" {
+				media.VideoUrl = video
+				contentList = append(contentList, media)
 			}
 		}
 	}

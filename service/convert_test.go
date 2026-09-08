@@ -3,6 +3,8 @@ package service
 import (
 	"testing"
 
+	"github.com/QuantumNous/new-api/common"
+
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
@@ -111,4 +113,26 @@ func TestStreamResponseConverterFacadesAcceptTypedNilRelayInfo(t *testing.T) {
 
 func ptrValue[T any](value T) *T {
 	return &value
+}
+
+func TestGeminiRequestPreservesChatVideoURL(t *testing.T) {
+	for _, videoURL := range []string{
+		`"data:video/mp4;base64,AAAAGGZ0eXBtcDQy"`,
+		`{"url":"data:video/mp4;base64,AAAAGGZ0eXBtcDQy"}`,
+	} {
+		t.Run(videoURL, func(t *testing.T) {
+			var request dto.GeneralOpenAIRequest
+			require.NoError(t, common.Unmarshal([]byte(`{"model":"gemini-3.8-flash","messages":[{"role":"user","content":[{"type":"text","text":"Describe this video"},{"type":"video_url","video_url":`+videoURL+`}]}]}`), &request))
+			result, err := ConvertRequest(nil, nil, types.RelayFormatGemini, &request)
+			require.NoError(t, err)
+			converted, ok := result.Value.(*dto.GeminiChatRequest)
+			require.True(t, ok)
+			require.Len(t, converted.Contents, 1)
+			require.Len(t, converted.Contents[0].Parts, 2, "the video must not disappear during request conversion")
+			assert.Equal(t, "Describe this video", converted.Contents[0].Parts[0].Text)
+			require.NotNil(t, converted.Contents[0].Parts[1].InlineData)
+			assert.Equal(t, "video/mp4", converted.Contents[0].Parts[1].InlineData.MimeType)
+			assert.Equal(t, "AAAAGGZ0eXBtcDQy", converted.Contents[0].Parts[1].InlineData.Data)
+		})
+	}
 }
