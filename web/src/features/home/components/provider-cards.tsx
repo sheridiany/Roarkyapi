@@ -40,6 +40,8 @@ const providers = [
       'GPT-5.6 Luna',
       'GPT-5.5',
       'GPT Image 2',
+      'GPT Image 2.5 Flare',
+      'GPT Image 2.5 Sunburst',
     ],
     family: 'ChatGPT',
     icon: OpenAI,

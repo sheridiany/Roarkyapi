@@ -395,6 +395,7 @@
 
 /* Each provider has its own material and motion vocabulary. */
 .mono-provider-openai { background: #07110f; }
+.mono-provider-openai .mono-provider-models { gap: clamp(6px, 3cqi, 10px); }
 .mono-provider-openai::before { animation: none; background: linear-gradient(140deg, #b0d2c04d, transparent 55%, #b0d2c02b); }
 .mono-provider-openai .mono-model-lettering { background-image: linear-gradient(105deg, #d9e9e2 35%, #a0f1cd 49%, #fff 54%, #d9e9e2 64%); }
 .mono-provider-anthropic { background: #c98d6c; border-color: #ddb095; box-shadow: inset 0 1px 0 #ffe4ce66; }

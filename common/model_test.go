@@ -8,7 +8,7 @@ import (
 )
 
 func TestGPTImage2CatalogExposesImageEndpoint(t *testing.T) {
-	for _, name := range []string{"gpt-image-2", "gpt-image-2-2026-04-21"} {
+	for _, name := range []string{"gpt-image-2", "gpt-image-2-2026-04-21", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst"} {
 		t.Run(name, func(t *testing.T) {
 			endpoints := GetEndpointTypesByChannelType(constant.ChannelTypeOpenAI, name)
 			require.NotEmpty(t, endpoints)
