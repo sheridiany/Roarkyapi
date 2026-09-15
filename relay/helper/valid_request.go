@@ -283,6 +283,24 @@ func GetAndValidOpenAIImageRequest(c *gin.Context, relayMode int) (*dto.ImageReq
 		}
 	}
 
+	if strings.HasPrefix(imageRequest.Model, "gemini-") && !common.IsGeminiImageModel(imageRequest.Model) {
+		return nil, errors.New("this Gemini model does not support image generation; select a Gemini image model")
+	}
+	if common.IsGeminiImageModel(imageRequest.Model) {
+		if relayMode == relayconstant.RelayModeImagesEdits {
+			return nil, errors.New("Gemini image editing uses the generateContent endpoint with image input")
+		}
+		if imageRequest.N != nil && *imageRequest.N > 1 {
+			return nil, errors.New("Gemini image generation supports n=1; send separate requests for additional images")
+		}
+		if imageRequest.Stream != nil && *imageRequest.Stream {
+			return nil, errors.New("Gemini Images API streaming is not supported; use the Gemini streamGenerateContent endpoint")
+		}
+		if imageRequest.ResponseFormat != "" && imageRequest.ResponseFormat != "b64_json" {
+			return nil, errors.New("Gemini image generation supports response_format=b64_json")
+		}
+	}
+
 	return imageRequest, nil
 }
 

@@ -490,6 +490,31 @@ func GeminiImageHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.
 	}
 	_ = resp.Body.Close()
 
+	if common.IsGeminiImageModel(info.UpstreamModelName) {
+		var response dto.GeminiChatResponse
+		if err := common.Unmarshal(responseBody, &response); err != nil {
+			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
+		}
+		output := dto.ImageResponse{Created: common.GetTimestamp(), Data: []dto.ImageData{}}
+		for _, candidate := range response.Candidates {
+			for _, part := range candidate.Content.Parts {
+				if !part.Thought && part.InlineData != nil && strings.HasPrefix(part.InlineData.MimeType, "image/") && part.InlineData.Data != "" {
+					output.Data = append(output.Data, dto.ImageData{B64Json: part.InlineData.Data})
+				}
+			}
+		}
+		if len(output.Data) == 0 {
+			return nil, types.NewOpenAIError(errors.New("Gemini returned no image; the request may have been filtered"), types.ErrorCodeBadResponseBody, http.StatusBadGateway)
+		}
+		usage := buildUsageFromGeminiResponse(c, info, &response)
+		encoded, err := common.Marshal(output)
+		if err != nil {
+			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
+		}
+		c.Data(http.StatusOK, "application/json", encoded)
+		return &usage, nil
+	}
+
 	var geminiResponse dto.GeminiImageResponse
 	if jsonErr := common.Unmarshal(responseBody, &geminiResponse); jsonErr != nil {
 		return nil, types.NewOpenAIError(jsonErr, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)

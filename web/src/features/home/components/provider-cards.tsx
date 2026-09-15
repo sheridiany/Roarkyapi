@@ -66,7 +66,16 @@ const providers = [
   },
   {
     name: 'Gemini',
-    models: ['Gemini 3.8 Flash', 'Gemini 3.7 Flash', 'Gemini 3.5 Flash-Lite'],
+    models: [
+      'Gemini 3.8 Flash',
+      'Gemini 3.7 Flash',
+      'Gemini 3.5 Flash-Lite',
+      'Gemini 3 Pro Image',
+      'Gemini 3 Pro Image Preview',
+      'Gemini 3.1 Flash Image',
+      'Gemini 3.1 Flash Image Preview',
+      'Gemini 3.1 Flash-Lite Image',
+    ],
     family: 'Gemini',
     icon: Gemini,
     tone: 'gemini',

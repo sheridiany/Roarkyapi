@@ -91,7 +91,7 @@ it.each([false, true])(
     for (const [name, count] of [
       ['OpenAI', 8],
       ['Anthropic', 5],
-      ['Gemini', 3],
+      ['Gemini', 8],
       ['xAI', 2],
     ] as const) {
       const card = screen.getByRole('article', { name })
@@ -105,6 +105,15 @@ it.each([false, true])(
     expect(
       screen.getByRole('listitem', { name: 'GPT Image 2.5 Sunburst' })
     ).toBeVisible()
+    for (const name of [
+      'Gemini 3 Pro Image',
+      'Gemini 3 Pro Image Preview',
+      'Gemini 3.1 Flash Image',
+      'Gemini 3.1 Flash Image Preview',
+      'Gemini 3.1 Flash-Lite Image',
+    ]) {
+      expect(screen.getByRole('listitem', { name })).toBeVisible()
+    }
     expect(screen.getByRole('main')).toHaveAttribute('lang', 'en')
     expect(
       screen.getByRole('link', { name: 'Privacy Policy' })
