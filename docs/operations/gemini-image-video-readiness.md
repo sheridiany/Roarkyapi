@@ -2,7 +2,7 @@
 
 ## 范围与生产边界
 
-工作分支 `codex/gemini-image-video`；未修改生产渠道、价格或发布。原始视频未提供，不能声称长视频问题已端到端修复。当前生产 Nginx 读取/发送超时均为 600 秒，关闭响应缓冲；SSE 心跳默认关闭。
+工作分支 `codex/gemini-image-video`；用户确认“全部上线”后，已发布 5 个生图型号、价格、页面及流式心跳配置，详见文末。原始视频未提供，不能声称长视频问题已端到端修复。生产 Nginx 读取/发送超时均为 600 秒，关闭响应缓冲。
 
 ## 视频证据与处理
 
@@ -63,7 +63,7 @@
 
 候选容器已停止，渠道密钥、临时管理凭证和令牌已清除。脱敏结果保留在服务器 `/opt/roarkapi/gemini-candidate/results.json` 和本地 `/tmp/gemini-candidate-results.json`。最终 Linux amd64 构建为 `/tmp/roark-gemini-final`。
 
-## 待应用配置与恢复
+## 发布配置与恢复
 
 - 渠道 8 保留原有 3 个文本型号、分组和参数覆盖，只追加通过的 5 个生图型号。
 - 合并 ModelPrice 基础价：Lite 0.05、两个 Flash 0.13、两个 Pro 0.25；5 个型号的 billing_setting.billing_mode 设为 ratio，Gemini 倍率保留 1.2。执行前重新读取配置，保留显式同名管理员覆盖。
@@ -72,3 +72,25 @@
 - 发布前在线备份 SQLite，保存渠道、相关 options 和元信息原值，以及 compose、二进制锚点；保留旧静态资源。
 - 回退应用和本次修改的配置，不能用旧数据库覆盖发布后的用户、消费和余额数据。
 - 上线后核对公网版本、模型列表、价格、真实出图和消费记录；原视频待补充后复测。
+
+## 2026-09-15 生产发布验收
+
+已发布 `roark-20260915-gemini-images`，代码提交 `c619bda45`。二进制 SHA-256：`5130f1ed2a1b7f81fe1b1599a0e3782bbc6a1bf0e9e4ddf46a15e7c5efd1f3ad`。只追加渠道 8 的 5 个型号，原有密钥、参数覆盖、分组、映射、地址及状态逐项比对一致；价格、元信息和 15 秒流式心跳通过管理 API 配置。
+
+公网 `/v1/models` 返回全部 5 个型号；逐个经 `https://api.roarkist.com/v1/images/generations` 生成白底绿三角，全部返回有效图片。Pro Preview 结果人工查看通过。对应消费日志如下：
+
+| 型号 | 公网耗时 | 消费日志 | quota | 美元/张 |
+| --- | ---: | ---: | ---: | ---: |
+| gemini-3.1-flash-lite-image | 4.9 秒 | 9060 | 30000 | 0.06 |
+| gemini-3.1-flash-image | 10.5 秒 | 9061 | 78000 | 0.156 |
+| gemini-3.1-flash-image-preview | 11.5 秒 | 9062 | 78000 | 0.156 |
+| gemini-3-pro-image | 17.1 秒 | 9063 | 150000 | 0.30 |
+| gemini-3-pro-image-preview | 16.3 秒 | 9064 | 150000 | 0.30 |
+
+测试令牌初始 1500000 quota，消费 486000，剩余 1014000，逐笔一致；测试令牌已删除，临时管理凭证已恢复。完整 Request ID、图片及验收 JSON 保留于 `/opt/roarkapi/backups/gemini-release-20260915-111514/`。
+
+公网浏览器确认新首页 8 个 Gemini 条目及邀请注册入口；230 个静态文件逐个校验一致，保留历史注册脚本。模型元信息与定价通过生产管理 API 核对；登录后页面视觉验证仍为前述候选数据验证，不冒充生产登录验收。容器运行正常，重启计数为 0。
+
+恢复点：上述备份目录内 `before.db`、`compose.yml`、`config-before.json`；旧二进制 `releases/roark-20260909-image25` 保留。回退应用及配置时不得覆盖发布后业务数据。
+
+Git 远端 `https://github.com/Roarkai/RoarkAPI.git` 返回 Repository not found，故本次以已测试本地提交部署，尚未完成远端同步。视频 30MiB 限制和原视频复测仍未解决；Gemini 2.5 生图因上游报错未启用。
