@@ -16,9 +16,9 @@
 - 服务用户 `roark-proxy`；配置 `/etc/roark-hi/config.yaml`，独立随机密码，不复用旧面板认证。标准 BBR、自适应速率，未设置未经测量的 Brutal 带宽值，未限制为单 CPU 线程。
 - TLS 使用 `roarkist.com` 有效证书，客户端严格校验，SNI 为该域名，实际节点连接 IP 为新 IP。
 - `/etc/letsencrypt/renewal-hooks/deploy/roark-hi` 在该证书续期后复制证书并重启个人服务，已实际运行验证。
-- `https://roarkist.com/hi?token=...` 由 Nginx 直接提供静态订阅 `/var/lib/roark-hi/subscription.yaml`。没有面板反向代理，独立随机访问密钥，响应禁止缓存，关闭此入口访问日志。
+- `https://roarkist.com/hi` 由 Nginx 直接提供静态订阅 `/var/lib/roark-hi/subscription.yaml`。没有面板反向代理。按用户明确要求移除订阅访问密钥；任何知道地址的人都能下载节点配置。响应禁止缓存，关闭此入口访问日志。
 - 订阅包括一个 Hysteria 2 节点及国内/局域网直连规则，电脑和手机可共用。需要支持 Hysteria 2 的 Clash/Mihomo 内核。
-- 完整链接只保存在服务器 `/etc/roark-hi/subscription-url.txt` 及本机 `/Users/xuean/Documents/Codex/2026-09-22/Roark-Clash/subscription-url.txt`，本机文件权限 0600。不得将链接或密码写入 Git。
+- 链接同步保存在服务器 `/etc/roark-hi/subscription-url.txt` 及本机 `/Users/xuean/Documents/Codex/2026-09-22/Roark-Clash/subscription-url.txt`，本机文件权限 0600。不得将节点密码写入 Git。
 
 ## 实测
 
@@ -28,7 +28,7 @@
 - Cloudflare 25,000,000 字节单连接下载：3.409948 秒，7,331,490 B/s，即约 58.7 Mbps。
 - 服务器临时本地 HTTP 测试源，经同一 Hysteria 2 隧道单连接下载 100,000,000 字节：7.783041 秒，12,848,448 B/s，即约 102.8 Mbps。此项测量客户端到节点链路，不等于所有目标站点速度。
 - Cloudflare 100 MB 请求被测试站返回 403，未计为有效测速；因此用临时本地源测试持续传输，测试服务和文件已自动清理。
-- 裸 `/hi`、无效密钥返回 404；官网与 API 状态入口返回 200。证书 hook 执行后服务保持 active/enabled。未进行整机重启或手机真机测试。
+- 最初订阅要求密钥；后按用户要求改为裸 `/hi`，公网返回 200 且内容为有效节点配置。官网与 API 状态入口在部署时返回 200。证书 hook 执行后服务保持 active/enabled。未进行整机重启或手机真机测试。
 
 ## 原有服务与恢复
 
@@ -41,3 +41,10 @@
 独立部署恢复点：`/var/backups/roark-hi-standalone-20260922-132117/roarkist.com.conf`。撤回新入口时恢复该 Nginx 文件，先 `nginx -t` 再 reload，并 `systemctl disable --now roark-hi`；保留备份和原有业务数据。初次面板接入前备份位于 `/var/backups/roark-hi-20260922-131511/`，不要用该整库备份覆盖后续流量记录。
 
 参考：[Hysteria 服务端配置](https://v2.hysteria.network/docs/advanced/Full-Server-Config/)、[Mihomo Hysteria 2 配置](https://wiki.metacubex.one/en/config/proxies/hysteria2/)。
+
+## 订阅显示修复
+
+- 下载响应改为 `Content-Disposition: attachment; filename=Roark.yaml`，避免 Clash 将引号转义字符当成名称；增加 `profile-title: Roark`。
+- 本机 Clash 中已有订阅已改名为 `Roark`，链接改为裸 `/hi`，实际点击刷新成功；未切换当前启用的订阅。
+- 公网验证返回 YAML、正确文件名与标题；不提供虚假的流量额度或到期时间。
+- 本次 Nginx 恢复点：`/var/backups/roark-hi-clean-20260922-133337/roarkist.com.conf`。
