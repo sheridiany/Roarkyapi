@@ -34,7 +34,9 @@
 
 开始时曾尝试复用旧订阅面板；用户否定该方案后已撤掉面板版 `/hi`，并用独立订阅替换本机链接文件。原面板节点地址从旧 IP 修正为新 IP，未修改原有 5 个账号、密码和额度。
 
-旧面板 `subscription-panel@roark` 和旧节点 `roark-node` 是否停用，正在等待用户选择。它们不是个人服务的依赖；不能因个人服务已独立就宣称原有服务已关闭。
+用户确认“停用吧”后，旧面板 `subscription-panel@roark` 和旧节点 `roark-node` 已 stop/disable，状态均为 inactive/disabled；8098 与 20001–20005 的 TCP/UDP 监听已消失。旧面板网站改为返回 410，数据库及 5 个账号保留。新的 `roark-hi` 保持 active/enabled。
+
+旧面板 Nginx 恢复点：`/var/backups/roark-old-panel-disabled-20260922-132702/go.roarkist.com.conf`。如用户要求恢复，先恢复该配置并通过 `nginx -t` 后 reload，再启用 `subscription-panel@roark` 与 `roark-node`。不要恢复到旧 IP。
 
 独立部署恢复点：`/var/backups/roark-hi-standalone-20260922-132117/roarkist.com.conf`。撤回新入口时恢复该 Nginx 文件，先 `nginx -t` 再 reload，并 `systemctl disable --now roark-hi`；保留备份和原有业务数据。初次面板接入前备份位于 `/var/backups/roark-hi-20260922-131511/`，不要用该整库备份覆盖后续流量记录。
 
