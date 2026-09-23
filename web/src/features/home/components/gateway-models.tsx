@@ -28,6 +28,7 @@ import { getLobeIcon } from '@/lib/lobe-icon'
 import { getModuleAccessFromStatus } from '@/lib/nav-modules'
 import { useAuthStore } from '@/stores/auth-store'
 
+import { getOfficialPriceComparison } from '../lib/official-price-comparison'
 import { GatewayModelPriceRows } from './gateway-model-price-rows'
 
 export function GatewayModels(props: { showCatalogLink?: boolean }) {
@@ -93,6 +94,18 @@ export function GatewayModels(props: { showCatalogLink?: boolean }) {
     ...new Set(visibleModels.map((model) => model.vendor_name || t('Other'))),
   ]
   const ratio = data.groupRatio[group] ?? data.usableGroup[group]?.ratio ?? 1
+  const comparison = getOfficialPriceComparison(
+    visibleModels,
+    Number(ratio),
+    data.priceRate,
+    data.usdExchangeRate
+  )
+  let discount = ''
+  if (comparison) {
+    const min = (comparison.min * 10).toFixed(2)
+    const max = (comparison.max * 10).toFixed(2)
+    discount = min === max ? min : `${min}–${max}`
+  }
   return (
     <section id='models' className='gateway-models gateway-wide'>
       <div className='gateway-filters'>
@@ -134,9 +147,9 @@ export function GatewayModels(props: { showCatalogLink?: boolean }) {
               </NativeSelectOption>
             ))}
           </NativeSelect>
-          {group && (
+          {comparison && (
             <span className='gateway-ratio-badge'>
-              {t('Group multiplier')} ×{ratio}
+              {t('≈ {{discount}} tenths of official price', { discount })}
             </span>
           )}
         </div>
@@ -144,9 +157,16 @@ export function GatewayModels(props: { showCatalogLink?: boolean }) {
       <p className='gateway-price-note'>
         {t('Token prices per 1M tokens. Fixed prices use the unit shown.')}{' '}
         {t(
-          'Prices include the selected group multiplier. Crossed-out prices are site base prices before the multiplier.'
+          'Prices are in CNY at the standard recharge rate, including the group multiplier. Crossed-out prices are official USD prices.'
         )}
       </p>
+      {comparison && (
+        <p className='gateway-price-note'>
+          {t(
+            'Compared with official standard text input/output rates, using the standard recharge price and exchange rate. Excludes long context, cache, images and recharge offers. Reference: 2026-09-23.'
+          )}
+        </p>
+      )}
       <p className='gateway-price-note sm:hidden'>
         {t('Swipe the table to see all prices.')}
       </p>

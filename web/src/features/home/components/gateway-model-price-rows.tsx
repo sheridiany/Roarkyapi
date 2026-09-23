@@ -26,12 +26,13 @@ import {
 } from '@/features/pricing/lib/billing-expr'
 import { getFixedPriceUnitKey } from '@/features/pricing/lib/billing-mode'
 import {
-  formatDynamicUnitPrice,
   isDynamicPricingModel,
   isUnconfiguredTaskUsageModel,
 } from '@/features/pricing/lib/dynamic-price'
-import { formatPrice, formatRequestPrice } from '@/features/pricing/lib/price'
 import type { PricingModel } from '@/features/pricing/types'
+import { toIntlLocale } from '@/i18n/languages'
+
+import { getOfficialTokenPrices } from '../lib/official-price-comparison'
 
 type Props = {
   model: PricingModel
@@ -41,25 +42,27 @@ type Props = {
   usdExchangeRate: number
 }
 
-function PriceValue(props: { price: string; base: string }) {
-  const { t } = useTranslation()
+function PriceValue(props: { price: number; base?: number }) {
+  const { t, i18n } = useTranslation()
+  const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
+  // Existing currency helpers follow wallet settings; this catalog explicitly compares CNY with USD.
+  const options = { minimumFractionDigits: 2, maximumFractionDigits: 6 }
+  const price = Number.isFinite(props.price)
+    ? `¥${new Intl.NumberFormat(locale, options).format(props.price)}`
+    : '—'
   return (
     <span className='gateway-price-value'>
-      <span>{props.price}</span>
-      {props.base !== '—' && props.base !== props.price && (
-        <del title={t('Base price before group multiplier')}>{props.base}</del>
+      <span>{price}</span>
+      {Number.isFinite(props.price) && props.base !== undefined && (
+        <del title={t('Official price (USD)')}>
+          ${new Intl.NumberFormat(locale, options).format(props.base)}
+        </del>
       )}
     </span>
   )
 }
 
-export function GatewayModelPriceRows({
-  model,
-  group,
-  groupRatio,
-  priceRate,
-  usdExchangeRate,
-}: Props) {
+export function GatewayModelPriceRows({ model, groupRatio, priceRate }: Props) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   if (isDynamicPricingModel(model)) {
@@ -112,19 +115,13 @@ export function GatewayModelPriceRows({
         ['cr', 'cacheReadPrice'],
         ['cc1h', 'cacheCreate1hPrice'],
       ]
-      const prices = [groupRatio, 1].map((ratio) =>
-        priceFields.map(([variable, field]) =>
-          new RegExp(`\\b${variable}\\b`).test(billingExpr)
-            ? formatDynamicUnitPrice(Number(tier[field] ?? 0), {
-                tokenUnit: 'M',
-                showRechargePrice: false,
-                priceRate,
-                usdExchangeRate,
-                groupRatioMultiplier: ratio,
-              })
-            : '—'
-        )
+      const prices = priceFields.map(([variable, field]) =>
+        new RegExp(`\\b${variable}\\b`).test(billingExpr)
+          ? Number(tier[field] ?? 0) * groupRatio * priceRate
+          : Number.NaN
       )
+      const official =
+        getOfficialTokenPrices(model.model_name, conditions) || []
       return (
         <tr key={`${model.model_name}-${tier.label}-${context}`}>
           <th scope='row'>
@@ -147,25 +144,25 @@ export function GatewayModelPriceRows({
             )}
           </th>
           <td>
-            <PriceValue price={prices[0][0]} base={prices[1][0]} />
+            <PriceValue price={prices[0]} base={official[0]} />
           </td>
           <td>
-            <PriceValue price={prices[0][1]} base={prices[1][1]} />
+            <PriceValue price={prices[1]} base={official[1]} />
           </td>
           <td>
-            <PriceValue price={prices[0][2]} base={prices[1][2]} />
-            {prices[0][4] !== '—' && (
+            <PriceValue price={prices[2]} base={official[2]} />
+            {Number.isFinite(prices[4]) && (
               <>
                 <span className='text-muted-foreground ml-1 text-xs'>5m</span>
                 <div>
-                  <PriceValue price={prices[0][4]} base={prices[1][4]} />
+                  <PriceValue price={prices[4]} base={official[4]} />
                   <span className='text-muted-foreground ml-1 text-xs'>1h</span>
                 </div>
               </>
             )}
           </td>
           <td>
-            <PriceValue price={prices[0][3]} base={prices[1][3]} />
+            <PriceValue price={prices[3]} base={official[3]} />
           </td>
         </tr>
       )
@@ -177,7 +174,9 @@ export function GatewayModelPriceRows({
       {isUnconfiguredTaskUsageModel(model) && <td colSpan={4}>—</td>}
       {!isUnconfiguredTaskUsageModel(model) && model.quota_type === 1 && (
         <td colSpan={4}>
-          {formatRequestPrice(model, false, priceRate, usdExchangeRate, group)}{' '}
+          <PriceValue
+            price={Number(model.model_price) * groupRatio * priceRate}
+          />{' '}
           / {t(getFixedPriceUnitKey(model))}
         </td>
       )}
@@ -190,24 +189,23 @@ export function GatewayModelPriceRows({
               '—'
             ) : (
               <PriceValue
-                price={formatPrice(
-                  model,
-                  type,
-                  'M',
-                  false,
-                  priceRate,
-                  usdExchangeRate,
-                  group
-                )}
-                base={formatPrice(
-                  { ...model, group_ratio: { [group]: 1 } },
-                  type,
-                  'M',
-                  false,
-                  priceRate,
-                  usdExchangeRate,
-                  group
-                )}
+                price={
+                  model.model_ratio *
+                  2 *
+                  groupRatio *
+                  priceRate *
+                  {
+                    input: 1,
+                    output: model.completion_ratio,
+                    cache: Number(model.cache_ratio),
+                    create_cache: Number(model.create_cache_ratio),
+                  }[type]
+                }
+                base={
+                  getOfficialTokenPrices(model.model_name)?.[
+                    { input: 0, output: 1, create_cache: 2, cache: 3 }[type]
+                  ]
+                }
               />
             )}
           </td>
