@@ -23,7 +23,7 @@ import XAI from '@lobehub/icons/es/XAI/components/Mono'
 
 import { ProviderCardArtwork } from './provider-card-artwork'
 
-// Official text/reasoning/coding model releases checked on 2026-09-06.
+// Official text/reasoning/coding model releases checked on 2026-09-23.
 // Includes the enabled image generation model; excludes audio-only models,
 // aliases, and restricted cybersecurity models.
 // Sources: https://developers.openai.com/api/docs/models/all
@@ -35,9 +35,10 @@ const providers = [
     name: 'OpenAI',
     models: [
       'GPT-6 Astra',
+      'GPT-6 Sol',
+      'GPT-6 Luna',
       'GPT-5.6 Sol',
       'GPT-5.6 Terra',
-      'GPT-5.6 Luna',
       'GPT-5.5',
       'GPT Image 2',
       'GPT Image 2.5 Flare',
@@ -53,6 +54,7 @@ const providers = [
     name: 'Anthropic',
     models: [
       'Claude Fable 5.1',
+      'Claude Opus 5.5',
       'Claude Opus 5',
       'Claude Sonnet 5',
       'Claude Fable 5',
@@ -84,7 +86,7 @@ const providers = [
   },
   {
     name: 'xAI',
-    models: ['Grok 4.6', 'Grok 4.5'],
+    models: ['Grok 4.7', 'Grok 4.6', 'Grok 4.5'],
     family: 'Grok',
     icon: XAI,
     tone: 'xai',

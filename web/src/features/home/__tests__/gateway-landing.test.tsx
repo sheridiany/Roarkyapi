@@ -89,10 +89,10 @@ it.each([false, true])(
     ).toBeVisible()
     expect(screen.getAllByRole('article')).toHaveLength(4)
     for (const [name, count] of [
-      ['OpenAI', 8],
-      ['Anthropic', 5],
+      ['OpenAI', 9],
+      ['Anthropic', 6],
       ['Gemini', 8],
-      ['xAI', 2],
+      ['xAI', 3],
     ] as const) {
       const card = screen.getByRole('article', { name })
       expect(card).toBeVisible()
@@ -106,6 +106,10 @@ it.each([false, true])(
       screen.getByRole('listitem', { name: 'GPT Image 2.5 Sunburst' })
     ).toBeVisible()
     for (const name of [
+      'GPT-6 Sol',
+      'GPT-6 Luna',
+      'Claude Opus 5.5',
+      'Grok 4.7',
       'Gemini 3 Pro Image',
       'Gemini 3 Pro Image Preview',
       'Gemini 3.1 Flash Image',

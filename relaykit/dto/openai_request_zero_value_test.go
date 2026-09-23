@@ -327,3 +327,18 @@ func TestSGLangRequestExtensionsRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+func TestGPT6SolLunaChatCapabilities(t *testing.T) {
+	for _, model := range []string{"gpt-6-sol", "gpt-6-luna", "gpt-6-sol-2026-09-22"} {
+		for _, effort := range []string{"", "medium", "none"} {
+			t.Run(model+"/"+effort, func(t *testing.T) {
+				capabilities := GetOpenAIChatCapabilities(model, effort)
+				assert.True(t, capabilities.UseDeveloperRole)
+				assert.True(t, capabilities.UseMaxCompletionTokens)
+				assert.Equal(t, effort == "none", capabilities.SupportsTemperature)
+				assert.Equal(t, effort == "none", capabilities.SupportsTopP)
+				assert.Equal(t, effort == "none", capabilities.SupportsLogProbs)
+			})
+		}
+	}
+}

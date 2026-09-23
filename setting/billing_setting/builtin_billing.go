@@ -13,4 +13,14 @@ var builtinBillingExpr = map[string]string{
 	// Do not infer service-tier discounts from incoming request parameters:
 	// channels filter service_tier by default, so it may not reach the upstream.
 	"gpt-6-astra": `len <= 272000 ? tier("standard", p * 10 + c * 50 + cr * 1 + cc * 12.5) : tier("long_context", p * 20 + c * 75 + cr * 2 + cc * 25)`,
+	// https://developers.openai.com/api/docs/models/gpt-6-sol (2026-09-23).
+	"gpt-6-sol": `len <= 272000 ? tier("standard", p * 2 + c * 10 + cr * 0.2 + cc * 2.5) : tier("long_context", p * 4 + c * 15 + cr * 0.4 + cc * 5)`,
+	// https://developers.openai.com/api/docs/models/gpt-6-luna (2026-09-23).
+	"gpt-6-luna": `len <= 272000 ? tier("standard", p * 0.1 + c * 0.5 + cr * 0.01 + cc * 0.125) : tier("long_context", p * 0.2 + c * 0.75 + cr * 0.02 + cc * 0.25)`,
+	// https://platform.claude.com/docs/en/about-claude/pricing (2026-09-23).
+	// Standard global rates apply throughout the 1M context window.
+	"claude-opus-5-5": `tier("standard", p * 4 + c * 20 + cr * 0.2 + cc * 5 + cc1h * 8)`,
+	// https://docs.x.ai/developers/models/grok-4.7.md (2026-09-23).
+	// The higher rate includes exactly 200K prompt tokens.
+	"grok-4.7": `len < 200000 ? tier("standard", p * 2 + c * 6 + cr * 0.5) : tier("long_context", p * 4 + c * 12 + cr * 1)`,
 }

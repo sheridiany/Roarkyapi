@@ -329,7 +329,8 @@ func GetOpenAIChatCapabilities(modelName, reasoningEffort string) OpenAIChatCapa
 	}
 
 	isGPT5Model := IsOpenAIGPT5Model(modelName)
-	if !isGPT5Model && !isOpenAIModelSnapshot(modelName, "gpt-6-astra") {
+	isGPT6SamplingModel := isOpenAIModelSnapshot(modelName, "gpt-6-sol") || isOpenAIModelSnapshot(modelName, "gpt-6-luna")
+	if !isGPT5Model && !isGPT6SamplingModel && !isOpenAIModelSnapshot(modelName, "gpt-6-astra") {
 		return capabilities
 	}
 	capabilities.UseMaxCompletionTokens = true
@@ -341,7 +342,9 @@ func GetOpenAIChatCapabilities(modelName, reasoningEffort string) OpenAIChatCapa
 	// https://developers.openai.com/api/docs/guides/latest-model?model=gpt-5.2
 	// https://developers.openai.com/api/docs/guides/latest-model?model=gpt-5.4
 	// https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra
-	supportsSampling := false
+	// Sol and Luna default to medium; sampling requires explicit none.
+	// https://developers.openai.com/api/docs/guides/latest-model
+	supportsSampling := isGPT6SamplingModel && reasoningEffort == "none"
 	if isGPT5Model && (reasoningEffort == "" || reasoningEffort == "none") {
 		for _, model := range []string{"gpt-5.1", "gpt-5.2", "gpt-5.4"} {
 			if isOpenAIModelSnapshot(modelName, model) {

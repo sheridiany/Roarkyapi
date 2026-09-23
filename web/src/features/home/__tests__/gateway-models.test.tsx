@@ -173,8 +173,13 @@ describe('Homepage model catalog', () => {
     await user.click(
       await screen.findByRole('button', { name: /Claude.?Kiro/ })
     )
-    const rows = screen.getAllByRole('row', { name: /claude-tiered/ })
-    expect(rows).toHaveLength(2)
+    const name = screen.getByRole('rowheader', { name: 'claude-tiered' })
+    expect(name).toHaveAttribute('rowspan', '2')
+    const rows = [
+      screen.getByRole('row', { name: /≤ 200K/ }),
+      screen.getByRole('row', { name: /> 200K/ }),
+    ]
+    expect(screen.getAllByText('claude-tiered')).toHaveLength(1)
     expect(rows[0]).toHaveTextContent('≤ 200K')
     expect(rows[1]).toHaveTextContent('> 200K')
     for (const text of ['$1', '$3', '$0.1', '$1.25', '$2']) {

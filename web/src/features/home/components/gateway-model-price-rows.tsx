@@ -108,7 +108,11 @@ export function GatewayModelPriceRows({
       )
       return (
         <tr key={`${model.model_name}-${tier.label}-${context}`}>
-          <th scope='row'>{model.model_name}</th>
+          {index === 0 && (
+            <th scope='row' rowSpan={tiers.length}>
+              {model.model_name}
+            </th>
+          )}
           <td className='text-muted-foreground'>{context}</td>
           <td>{prices[0]}</td>
           <td>{prices[1]}</td>
