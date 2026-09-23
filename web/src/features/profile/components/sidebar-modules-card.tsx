@@ -32,8 +32,9 @@ import {
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Switch } from '@/components/ui/switch'
 import { api } from '@/lib/api'
-import { isSidebarServiceModuleVisible } from '@/lib/service-visibility'
 import { handleServerError } from '@/lib/handle-server-error'
+import { ROLE } from '@/lib/roles'
+import { isSidebarServiceModuleVisible } from '@/lib/service-visibility'
 import { useAuthStore } from '@/stores/auth-store'
 
 type SidebarModuleConfig = {
@@ -235,8 +236,11 @@ export function SidebarModulesCard() {
               </div>
               <div className='mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1'>
                 {section.modules
-                  .filter((module) =>
-                    isSidebarServiceModuleVisible(section.key, module.key)
+                  .filter(
+                    (module) =>
+                      (module.key !== 'audit' ||
+                        (currentUser?.role ?? 0) >= ROLE.ADMIN) &&
+                      isSidebarServiceModuleVisible(section.key, module.key)
                   )
                   .map((mod) => (
                     <div

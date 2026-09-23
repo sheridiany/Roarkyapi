@@ -19,12 +19,13 @@ For commercial licensing, please contact support@quantumnous.com
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook } from '@testing-library/react'
 import type { PropsWithChildren } from 'react'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 
 import { useAuthStore } from '@/stores/auth-store'
 
 import { useSidebarConfig } from '../use-sidebar-config'
 import { useSidebarData } from '../use-sidebar-data'
+import { useSidebarView } from '../use-sidebar-view'
 
 let client: QueryClient
 
@@ -79,5 +80,31 @@ it.each([true, false])(
     expect(names).toContain('Model Pricing')
     expect(names).not.toContain('Dashboard')
     expect(names).not.toContain('Usage Logs')
+  }
+)
+
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  useLocation: () => '/usage-logs/common',
+}))
+
+it.each([1, 10, 100])(
+  'only shows audit navigation for administrators (role %s)',
+  (role) => {
+    useAuthStore.getState().auth.setUser({ id: 1, username: 'preview', role })
+    client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    client.setQueryData(['status'], { SidebarModulesAdmin: '' })
+    const { result } = renderHook(() => useSidebarView(), {
+      wrapper: (props: PropsWithChildren) => (
+        <QueryClientProvider client={client}>
+          {props.children}
+        </QueryClientProvider>
+      ),
+    })
+    const urls = result.current.navGroups.flatMap((group) =>
+      group.items.map((item) => item.url)
+    )
+    expect(urls.includes('/usage-logs/audit')).toBe(role >= 10)
+    expect(urls).toContain('/usage-logs/common')
   }
 )

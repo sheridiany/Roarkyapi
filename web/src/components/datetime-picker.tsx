@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { ChevronDownIcon } from 'lucide-react'
 import * as React from 'react'
-import { enUS, fr, ja, ru, vi, zhCN } from 'react-day-picker/locale'
+import { enUS, fr, ja, ru, vi, zhCN, zhTW } from 'react-day-picker/locale'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -29,12 +29,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { toIntlLocale } from '@/i18n/languages'
 import dayjs from '@/lib/dayjs'
 import { cn } from '@/lib/utils'
 
 const calendarLocales = {
   en: enUS,
   zh: zhCN,
+  'zh-CN': zhCN,
+  'zh-TW': zhTW,
   fr,
   ru,
   ja,
@@ -46,6 +49,10 @@ interface DateTimePickerProps {
   onChange?: (date: Date | undefined) => void
   placeholder?: string
   className?: string
+  compact?: boolean
+  allowClear?: boolean
+  minDate?: Date
+  maxDate?: Date
 }
 
 export function DateTimePicker({
@@ -53,11 +60,19 @@ export function DateTimePicker({
   onChange,
   placeholder,
   className,
+  compact = false,
+  allowClear = true,
+  minDate,
+  maxDate,
 }: DateTimePickerProps) {
   const { t, i18n } = useTranslation()
   const placeholderText = placeholder ?? t('Select date')
   const calendarLocale =
-    calendarLocales[i18n.language as keyof typeof calendarLocales] ?? enUS
+    calendarLocales[
+      toIntlLocale(
+        i18n.language || i18n.resolvedLanguage
+      ) as keyof typeof calendarLocales
+    ] ?? enUS
   const currentYear = new Date().getFullYear()
   const [open, setOpen] = React.useState(false)
   const [date, setDate] = React.useState<Date | undefined>(value)
@@ -79,6 +94,9 @@ export function DateTimePicker({
       const [hours, minutes] = time.split(':').map(Number)
       const newDate = new Date(selectedDate)
       newDate.setHours(hours, minutes, 0, 0)
+      if (minDate && newDate < minDate) newDate.setTime(minDate.getTime())
+      if (maxDate && newDate > maxDate) newDate.setTime(maxDate.getTime())
+      setTime(dayjs(newDate).format('HH:mm'))
       setDate(newDate)
       setMonth(newDate)
       onChange?.(newDate)
@@ -92,12 +110,16 @@ export function DateTimePicker({
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = e.target.value
+    if (!/^\d{2}:\d{2}$/.test(newTime)) return
     setTime(newTime)
 
     if (date) {
       const [hours, minutes] = newTime.split(':').map(Number)
       const newDate = new Date(date)
       newDate.setHours(hours, minutes, 0, 0)
+      if (minDate && newDate < minDate) newDate.setTime(minDate.getTime())
+      if (maxDate && newDate > maxDate) newDate.setTime(maxDate.getTime())
+      setTime(dayjs(newDate).format('HH:mm'))
       setDate(newDate)
       onChange?.(newDate)
     }
@@ -110,12 +132,24 @@ export function DateTimePicker({
     onChange?.(undefined)
   }
 
+  const timeInput = (
+    <Input
+      type='time'
+      aria-label={`${placeholderText} ${t('Time')}`}
+      value={time}
+      onChange={handleTimeChange}
+      className='w-32 appearance-none [&::-webkit-calendar-picker-indicator]:hidden'
+      disabled={!date}
+    />
+  )
   return (
     <div className={cn('flex gap-2', className)}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           render={
             <Button
+              type='button'
+              aria-label={placeholderText}
               variant='outline'
               className={cn(
                 'flex-1 justify-between font-normal',
@@ -124,12 +158,24 @@ export function DateTimePicker({
             />
           }
         >
-          {date ? dayjs(date).format('YYYY-MM-DD') : placeholderText}
+          {date
+            ? dayjs(date).format(compact ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD')
+            : placeholderText}
           <ChevronDownIcon className='h-4 w-4 opacity-50' />
         </PopoverTrigger>
-        <PopoverContent className='w-auto overflow-hidden p-0' align='start'>
+        <PopoverContent
+          className='w-auto max-w-[calc(100vw-2rem)] overflow-hidden p-0'
+          align='start'
+        >
           <Calendar
             mode='single'
+            required={!allowClear}
+            disabled={(day) =>
+              Boolean(
+                (minDate && dayjs(day).isBefore(minDate, 'day')) ||
+                (maxDate && dayjs(day).isAfter(maxDate, 'day'))
+              )
+            }
             selected={date}
             month={month}
             onMonthChange={setMonth}
@@ -139,23 +185,23 @@ export function DateTimePicker({
             startMonth={new Date(currentYear - 100, 0)}
             endMonth={new Date(currentYear + 100, 11)}
           />
+          {compact && (
+            <div className='flex items-center justify-between gap-3 border-t p-3'>
+              <span className='text-sm'>{t('Time')}</span>
+              {timeInput}
+            </div>
+          )}
         </PopoverContent>
       </Popover>
-      <Input
-        type='time'
-        value={time}
-        onChange={handleTimeChange}
-        className='w-32 appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none'
-        disabled={!date}
-      />
-      {date && (
+      {!compact && timeInput}
+      {date && allowClear && (
         <Button
           type='button'
           variant='outline'
           size='icon'
           onClick={handleClear}
           className='shrink-0'
-          aria-label='Clear'
+          aria-label={t('Clear')}
         >
           <span aria-hidden='true'>✕</span>
         </Button>

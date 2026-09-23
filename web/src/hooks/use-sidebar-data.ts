@@ -86,6 +86,7 @@ export function useSidebarData(): SidebarData {
           {
             title: t('Audit Logs'),
             url: '/usage-logs/audit',
+            requiredRole: ROLE.ADMIN,
             icon: ClipboardList,
           },
           {
