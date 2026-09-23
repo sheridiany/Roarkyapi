@@ -50,7 +50,11 @@ export function Profile() {
             />
           </CardStaggerItem>
           <CardStaggerItem>
-            <ProfileSecurityCard profile={profile} loading={loading} />
+            <ProfileSecurityCard
+              profile={profile}
+              loading={loading}
+              onProfileUpdate={refreshProfile}
+            />
           </CardStaggerItem>
         </CardStaggerContainer>
       </div>

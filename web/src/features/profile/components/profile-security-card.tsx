@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -39,7 +40,7 @@ import { useAccountSecurity } from '@/features/security/hooks/use-account-securi
 
 import { changeAccountPassword } from '../api'
 import {
-  changePasswordSchema,
+  createChangePasswordSchema,
   type ChangePasswordValues,
 } from '../lib/change-password-schema'
 import type { UserProfile } from '../types'
@@ -47,12 +48,15 @@ import type { UserProfile } from '../types'
 interface ProfileSecurityCardProps {
   profile: UserProfile | null
   loading: boolean
+  onProfileUpdate?: () => void
 }
 
 export function ProfileSecurityCard(props: ProfileSecurityCardProps) {
   const { t } = useTranslation()
+  const [passwordSet, setPasswordSet] = useState(false)
+  const hasPassword = passwordSet || props.profile?.has_password !== false
   const form = useForm<ChangePasswordValues>({
-    resolver: zodResolver(changePasswordSchema),
+    resolver: zodResolver(createChangePasswordSchema(hasPassword)),
     defaultValues: {
       originalPassword: '',
       newPassword: '',
@@ -67,20 +71,17 @@ export function ProfileSecurityCard(props: ProfileSecurityCardProps) {
       const response = await security.run(async (signal) => {
         const proof = await security.verify(
           {
-            scope:
-              props.profile?.has_password === false
-                ? 'account.password.set'
-                : 'account.password.change',
+            scope: !hasPassword
+              ? 'account.password.set'
+              : 'account.password.change',
           },
           signal,
-          props.profile?.has_password === false
-            ? undefined
-            : values.originalPassword
+          !hasPassword ? undefined : values.originalPassword
         )
         return changeAccountPassword(
           {
             password: values.newPassword,
-            ...(props.profile?.has_password === false
+            ...(!hasPassword
               ? {}
               : { original_password: values.originalPassword }),
           },
@@ -89,6 +90,8 @@ export function ProfileSecurityCard(props: ProfileSecurityCardProps) {
         )
       })
       if (!response) return
+      setPasswordSet(true)
+      props.onProfileUpdate?.()
       form.reset()
       toast.success(t('Password changed successfully'))
     } catch {
@@ -100,7 +103,7 @@ export function ProfileSecurityCard(props: ProfileSecurityCardProps) {
     <>
       <SecureVerificationDialog {...security.verificationDialogProps} />
       <TitledCard
-        title={t('Change Password')}
+        title={hasPassword ? t('Change Password') : t('Set Password')}
         disableHoverEffect
         headerClassName='!pb-0 sm:!pb-0'
       >
@@ -125,23 +128,25 @@ export function ProfileSecurityCard(props: ProfileSecurityCardProps) {
                 disabled={submitting || !props.profile}
                 className='grid min-w-0 gap-5 sm:grid-cols-2'
               >
-                <FormField
-                  control={form.control}
-                  name='originalPassword'
-                  render={({ field }) => (
-                    <FormItem className='sm:col-span-2 sm:max-w-[calc(50%-0.625rem)]'>
-                      <FormLabel>{t('Current Password')}</FormLabel>
-                      <FormControl>
-                        <PasswordInput
-                          {...field}
-                          className='h-10 [&_input]:h-10'
-                          autoComplete='current-password'
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {hasPassword && (
+                  <FormField
+                    control={form.control}
+                    name='originalPassword'
+                    render={({ field }) => (
+                      <FormItem className='sm:col-span-2 sm:max-w-[calc(50%-0.625rem)]'>
+                        <FormLabel>{t('Current Password')}</FormLabel>
+                        <FormControl>
+                          <PasswordInput
+                            {...field}
+                            className='h-10 [&_input]:h-10'
+                            autoComplete='current-password'
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <FormField
                   control={form.control}
                   name='newPassword'
@@ -193,7 +198,9 @@ export function ProfileSecurityCard(props: ProfileSecurityCardProps) {
                   className='h-10 [&_input]:h-10'
                 >
                   {submitting && <Loader2 className='size-4 animate-spin' />}
-                  {submitting ? t('Changing...') : t('Change Password')}
+                  {submitting
+                    ? t('Changing...')
+                    : t(hasPassword ? 'Change Password' : 'Set Password')}
                 </Button>
               </div>
             </form>

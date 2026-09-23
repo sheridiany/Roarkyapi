@@ -377,7 +377,8 @@
 .gateway-vendors button {
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 8px 14px;
+  min-height: 40px;
   font-size: 14px;
   color: var(--muted-foreground);
   cursor: pointer;
@@ -401,6 +402,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
+  min-height: 42px;
   min-width: 180px;
   max-width: min(320px, 75vw);
 }
@@ -1376,4 +1378,90 @@ button.gateway-user-log-cost:hover {
 }
 .dark .gateway-user-logs-filters [type='datetime-local'] {
   color-scheme: dark;
+}
+
+/* Compact catalog: one group, provider sections, expandable billing tiers. */
+.gateway-price-value {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.gateway-price-value del {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  opacity: 0.8;
+}
+.gateway-ratio-badge {
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 7%, transparent);
+  white-space: nowrap;
+}
+.gateway-model-name {
+  display: block;
+}
+.gateway-tier-context {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 400;
+}
+.gateway-model-table .gateway-tier-toggle {
+  min-height: 28px;
+  height: auto;
+  padding: 2px 6px;
+  margin-inline-start: 6px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 400;
+}
+.gateway-model-table table {
+  min-width: 720px;
+}
+.gateway-model-table tbody th {
+  width: 34%;
+}
+.gateway-model-heading > span {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+.gateway-group {
+  flex-wrap: wrap;
+}
+.gateway-table-scroll:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+@media (max-width: 640px) {
+  .gateway-model-table th,
+  .gateway-model-table td {
+    padding: 10px 12px;
+  }
+  .gateway-model-table thead th:first-child,
+  .gateway-model-table tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--background);
+    width: 170px;
+    min-width: 170px;
+    max-width: 170px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .gateway-model-table .gateway-tier-toggle {
+    min-height: 36px;
+    margin-inline-start: 0;
+  }
+  .gateway-price-value {
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-end;
+  }
 }

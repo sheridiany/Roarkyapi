@@ -16,8 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '@/components/ui/button'
 import {
   parseTiersFromExpr,
   splitBillingExprAndRequestRules,
@@ -39,6 +41,18 @@ type Props = {
   usdExchangeRate: number
 }
 
+function PriceValue(props: { price: string; base: string }) {
+  const { t } = useTranslation()
+  return (
+    <span className='gateway-price-value'>
+      <span>{props.price}</span>
+      {props.base !== '—' && props.base !== props.price && (
+        <del title={t('Base price before group multiplier')}>{props.base}</del>
+      )}
+    </span>
+  )
+}
+
 export function GatewayModelPriceRows({
   model,
   group,
@@ -47,6 +61,7 @@ export function GatewayModelPriceRows({
   usdExchangeRate,
 }: Props) {
   const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(false)
   if (isDynamicPricingModel(model)) {
     const { billingExpr } = splitBillingExprAndRequestRules(
       model.billing_expr || ''
@@ -56,11 +71,12 @@ export function GatewayModelPriceRows({
       return (
         <tr>
           <th scope='row'>{model.model_name}</th>
-          <td colSpan={5}>{t('Dynamic Pricing')}</td>
+          <td colSpan={4}>{t('Dynamic Pricing')}</td>
         </tr>
       )
     }
     return tiers.map((tier, index) => {
+      if (index > 0 && !expanded) return null
       let conditions = tier.conditions
       if (
         !conditions.length &&
@@ -89,46 +105,68 @@ export function GatewayModelPriceRows({
             return `${field}${op} ${count}`
           })
           .join(' / ') || (tiers.length === 1 ? '—' : t('Other'))
-      const prices = [
+      const priceFields = [
         ['p', 'inputPrice'],
         ['c', 'outputPrice'],
         ['cc', 'cacheCreatePrice'],
         ['cr', 'cacheReadPrice'],
         ['cc1h', 'cacheCreate1hPrice'],
-      ].map(([variable, field]) =>
-        new RegExp(`\\b${variable}\\b`).test(billingExpr)
-          ? formatDynamicUnitPrice(Number(tier[field] ?? 0), {
-              tokenUnit: 'M',
-              showRechargePrice: false,
-              priceRate,
-              usdExchangeRate,
-              groupRatioMultiplier: groupRatio,
-            })
-          : '—'
+      ]
+      const prices = [groupRatio, 1].map((ratio) =>
+        priceFields.map(([variable, field]) =>
+          new RegExp(`\\b${variable}\\b`).test(billingExpr)
+            ? formatDynamicUnitPrice(Number(tier[field] ?? 0), {
+                tokenUnit: 'M',
+                showRechargePrice: false,
+                priceRate,
+                usdExchangeRate,
+                groupRatioMultiplier: ratio,
+              })
+            : '—'
+        )
       )
       return (
         <tr key={`${model.model_name}-${tier.label}-${context}`}>
-          {index === 0 && (
-            <th scope='row' rowSpan={tiers.length}>
-              {model.model_name}
-            </th>
-          )}
-          <td className='text-muted-foreground'>{context}</td>
-          <td>{prices[0]}</td>
-          <td>{prices[1]}</td>
+          <th scope='row'>
+            {index === 0 && (
+              <span className='gateway-model-name'>{model.model_name}</span>
+            )}
+            {context !== '—' && (
+              <span className='gateway-tier-context'>{context}</span>
+            )}
+            {index === 0 && tiers.length > 1 && (
+              <Button
+                variant='ghost'
+                size='sm'
+                className='gateway-tier-toggle'
+                aria-expanded={expanded}
+                onClick={() => setExpanded(!expanded)}
+              >
+                {expanded ? t('Hide price tiers') : t('Show price tiers')}
+              </Button>
+            )}
+          </th>
           <td>
-            <span>{prices[2]}</span>
-            {prices[4] !== '—' && (
+            <PriceValue price={prices[0][0]} base={prices[1][0]} />
+          </td>
+          <td>
+            <PriceValue price={prices[0][1]} base={prices[1][1]} />
+          </td>
+          <td>
+            <PriceValue price={prices[0][2]} base={prices[1][2]} />
+            {prices[0][4] !== '—' && (
               <>
                 <span className='text-muted-foreground ml-1 text-xs'>5m</span>
                 <div>
-                  <span>{prices[4]}</span>
+                  <PriceValue price={prices[0][4]} base={prices[1][4]} />
                   <span className='text-muted-foreground ml-1 text-xs'>1h</span>
                 </div>
               </>
             )}
           </td>
-          <td>{prices[3]}</td>
+          <td>
+            <PriceValue price={prices[0][3]} base={prices[1][3]} />
+          </td>
         </tr>
       )
     })
@@ -136,7 +174,6 @@ export function GatewayModelPriceRows({
   return (
     <tr>
       <th scope='row'>{model.model_name}</th>
-      <td>—</td>
       {isUnconfiguredTaskUsageModel(model) && <td colSpan={4}>—</td>}
       {!isUnconfiguredTaskUsageModel(model) && model.quota_type === 1 && (
         <td colSpan={4}>
@@ -149,9 +186,11 @@ export function GatewayModelPriceRows({
         (['input', 'output', 'create_cache', 'cache'] as const).map((type) => (
           <td key={type}>
             {(type === 'cache' && model.cache_ratio == null) ||
-            (type === 'create_cache' && model.create_cache_ratio == null)
-              ? '—'
-              : formatPrice(
+            (type === 'create_cache' && model.create_cache_ratio == null) ? (
+              '—'
+            ) : (
+              <PriceValue
+                price={formatPrice(
                   model,
                   type,
                   'M',
@@ -160,6 +199,17 @@ export function GatewayModelPriceRows({
                   usdExchangeRate,
                   group
                 )}
+                base={formatPrice(
+                  { ...model, group_ratio: { [group]: 1 } },
+                  type,
+                  'M',
+                  false,
+                  priceRate,
+                  usdExchangeRate,
+                  group
+                )}
+              />
+            )}
           </td>
         ))}
     </tr>

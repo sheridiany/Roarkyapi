@@ -230,3 +230,118 @@ test('email and configured Google bindings use full-width rows', async () => {
   expect(emailRow).toHaveClass('grid-cols-1')
   expect(screen.queryByText('opaque-google-id')).not.toBeInTheDocument()
 })
+
+test('Google users without a password can start identity verification without entering an old password', async () => {
+  const get = vi.spyOn(api, 'get').mockResolvedValue({
+    data: {
+      success: true,
+      data: {
+        scope: 'account.password.set',
+        methods: [{ method: 'oauth', available: true }],
+        oauth_providers: [{ slug: 'google', name: 'Google' }],
+        password_encryption_enabled: false,
+      },
+    },
+  })
+  render(
+    <ProfileSecurityCard
+      loading={false}
+      profile={{
+        id: 2,
+        username: 'google',
+        has_password: false,
+        display_name: 'Google',
+        role: 1,
+        group: 'default',
+        quota: 0,
+        used_quota: 0,
+        request_count: 0,
+        status: 1,
+        created_time: 1,
+      }}
+    />
+  )
+  expect(screen.queryByLabelText('Current Password')).not.toBeInTheDocument()
+  const user = userEvent.setup()
+  await user.type(screen.getByLabelText('New Password'), 'first-password')
+  await user.type(
+    screen.getByLabelText('Confirm New Password'),
+    'first-password'
+  )
+  await user.click(screen.getByRole('button', { name: 'Set Password' }))
+  expect(await screen.findByRole('dialog')).toBeVisible()
+  expect(get).toHaveBeenCalledWith(
+    '/api/verify/methods',
+    expect.objectContaining({ params: { scope: 'account.password.set' } })
+  )
+})
+
+test('first password setup submits the proof without an old password and then switches to change mode', async () => {
+  vi.spyOn(api, 'get').mockResolvedValue({
+    data: {
+      success: true,
+      data: {
+        scope: 'account.password.set',
+        methods: [{ method: '2fa', available: true }],
+        oauth_providers: [],
+        password_encryption_enabled: false,
+      },
+    },
+  })
+  vi.spyOn(api, 'post').mockResolvedValue({
+    data: {
+      success: true,
+      data: {
+        scope: 'account.password.set',
+        method: '2fa',
+        proof_token: 'first-password-proof',
+        expires_at: Math.floor(Date.now() / 1000) + 60,
+      },
+    },
+  })
+  const put = vi.spyOn(api, 'put').mockResolvedValue({
+    data: { success: true, data: { has_password: true } },
+  })
+  const refresh = vi.fn()
+  render(
+    <ProfileSecurityCard
+      onProfileUpdate={refresh}
+      loading={false}
+      profile={{
+        id: 2,
+        username: 'google',
+        has_password: false,
+        display_name: 'Google',
+        role: 1,
+        group: 'default',
+        quota: 0,
+        used_quota: 0,
+        request_count: 0,
+        status: 1,
+        created_time: 1,
+      }}
+    />
+  )
+  const user = userEvent.setup()
+  await user.type(screen.getByLabelText('New Password'), 'first-password')
+  await user.type(
+    screen.getByLabelText('Confirm New Password'),
+    'first-password'
+  )
+  await user.click(screen.getByRole('button', { name: 'Set Password' }))
+  await user.type(
+    await screen.findByLabelText('Authenticator code or backup code'),
+    '123456'
+  )
+  await user.click(screen.getByRole('button', { name: 'Verify' }))
+  expect(await screen.findByLabelText('Current Password')).toBeVisible()
+  expect(put).toHaveBeenCalledWith(
+    '/api/user/self',
+    { password: 'first-password' },
+    expect.objectContaining({
+      headers: { 'X-Security-Proof': 'first-password-proof' },
+    })
+  )
+  expect(screen.getByLabelText('New Password')).toHaveValue('')
+  expect(refresh).toHaveBeenCalledTimes(1)
+})

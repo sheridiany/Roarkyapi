@@ -42,6 +42,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
 
+import { ERROR_MESSAGES } from '../../constants'
 import {
   FALLBACK_ERROR_CONTENT,
   getMessageErrorState,
@@ -107,9 +108,17 @@ export function MessageError({
       <AlertTitle>{t('Error')}</AlertTitle>
       <AlertDescription className='space-y-2'>
         <p>
-          {errorState.content === FALLBACK_ERROR_CONTENT
-            ? t(FALLBACK_ERROR_CONTENT)
+          {errorState.content === FALLBACK_ERROR_CONTENT ||
+          Object.values(ERROR_MESSAGES).some(
+            (message) => message === errorState.content
+          )
+            ? t(errorState.content)
             : errorState.content}
+        </p>
+        <p>
+          {t(
+            'Retry the request or choose another model. If the issue persists, include the error details when contacting support.'
+          )}
         </p>
         {actions}
       </AlertDescription>

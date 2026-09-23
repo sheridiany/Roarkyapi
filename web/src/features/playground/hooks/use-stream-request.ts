@@ -24,7 +24,6 @@ import { getFreshAuthHeaders } from '@/lib/api'
 import { API_ENDPOINTS, ERROR_MESSAGES } from '../constants'
 import {
   getStreamReadyStateError,
-  isStreamClosedReadyState,
   isStreamDoneMessage,
   parseStreamErrorDetails,
   parseStreamMessageUpdates,
@@ -121,6 +120,17 @@ export function createStreamRequestController(
       }
 
       try {
+        const parsed: unknown = JSON.parse(data)
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          'error' in parsed &&
+          parsed.error
+        ) {
+          const { errorMessage, errorCode } = parseStreamErrorDetails(data)
+          handleError(errorMessage, errorCode)
+          return
+        }
         const updates = parseStreamMessageUpdates(data)
 
         for (const update of updates) {
@@ -135,12 +145,8 @@ export function createStreamRequestController(
 
     nextSource.addEventListener('error', (event) => {
       if (!isCurrent() || completed) return
-      if (!isStreamClosedReadyState(nextSource.readyState)) {
-        // eslint-disable-next-line no-console
-        console.error('SSE Error:', event)
-        const { errorCode, errorMessage } = parseStreamErrorDetails(event.data)
-        handleError(errorMessage, errorCode)
-      }
+      const { errorCode, errorMessage } = parseStreamErrorDetails(event.data)
+      handleError(errorMessage, errorCode)
     })
 
     nextSource.addEventListener('readystatechange', (event) => {

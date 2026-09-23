@@ -186,3 +186,17 @@ describe('audit log sidebar entry', () => {
     expect(titles).toContain('Audit Logs')
   })
 })
+
+it('hides customer plans by configuration while preserving other personal entries', () => {
+  const { result } = sidebarFor(
+    { personal: { plans: false, security: false } },
+    undefined
+  )
+  const items = result.current
+    .flatMap((group) => group.items)
+    .map((item) => item.title)
+  expect(items).not.toContain('Subscription Plans')
+  expect(items).not.toContain('Security & Access')
+  expect(items).toContain('My Balance')
+  expect(items).toContain('Profile')
+})

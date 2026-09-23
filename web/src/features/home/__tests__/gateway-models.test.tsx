@@ -124,72 +124,61 @@ afterEach(() => {
 })
 
 describe('Homepage model catalog', () => {
-  it('shows only configured product groups as buttons and switches the priced models', async () => {
+  it('filters providers and selects one group without exposing unused groups', async () => {
     const user = userEvent.setup()
     await renderModels()
-    const codexTable = await screen.findByRole('table', { name: /Codex/ })
-    const standard = within(codexTable).getByRole('row', {
-      name: /gpt-standard/,
-    })
-    expect(within(standard).getByText('$2')).toBeVisible()
+    const table = await screen.findByRole('table', { name: /OpenAI/ })
     expect(
-      screen.queryByRole('heading', { name: 'Models and pricing' })
-    ).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: 'All vendors' })
-    ).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole('combobox', { name: 'Group' })
-    ).not.toBeInTheDocument()
-    const filters = screen.getByRole('group', { name: 'Group' })
-    expect(within(filters).getAllByRole('button')).toHaveLength(3)
-    expect(
-      within(filters).getByRole('button', { name: 'All groups' })
-    ).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getAllByRole('table')).toHaveLength(2)
-    expect(
-      within(screen.getByRole('table', { name: /ClaudeKiro/ })).getByRole(
-        'row',
-        { name: /gpt-standard/ }
-      )
-    ).toHaveTextContent('$1')
-    expect(filters).not.toHaveTextContent('Default')
-    expect(filters).not.toHaveTextContent('VIP')
-    expect(filters).not.toHaveTextContent('Automatic grouping')
-    await user.click(
-      within(filters).getByRole('button', { name: /Claude.?Kiro/ })
+      within(table).getByRole('row', { name: /gpt-standard/ })
+    ).toHaveTextContent('$2')
+    const select = screen.getByRole('combobox', { name: 'Group' })
+    expect(select).toHaveValue('Codex')
+    expect(within(select).getAllByRole('option')).toHaveLength(2)
+    expect(select).not.toHaveTextContent('VIP')
+    await user.selectOptions(select, 'ClaudeKiro')
+    expect(screen.getByRole('row', { name: /gpt-standard/ })).toHaveTextContent(
+      '$1'
     )
-    expect(
-      within(screen.getByRole('row', { name: /gpt-standard/ })).getByText('$1')
-    ).toBeVisible()
     expect(
       screen.queryByRole('row', { name: /gpt-image-request/ })
     ).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Anthropic' }))
+    expect(screen.getAllByRole('table')).toHaveLength(1)
+    expect(screen.getByRole('table', { name: /Anthropic/ })).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /gpt-standard/ })
+    ).not.toBeInTheDocument()
+    expect(select).toHaveValue('ClaudeKiro')
   })
 
-  it('renders every dynamic price tier inline with group-adjusted input output and cache prices', async () => {
+  it('keeps long-context prices collapsed and expands every correctly adjusted tier on request', async () => {
     const user = userEvent.setup()
     await renderModels()
-    await user.click(
-      await screen.findByRole('button', { name: /Claude.?Kiro/ })
-    )
-    const name = screen.getByRole('rowheader', { name: 'claude-tiered' })
-    expect(name).toHaveAttribute('rowspan', '2')
-    const rows = [
-      screen.getByRole('row', { name: /≤ 200K/ }),
-      screen.getByRole('row', { name: /> 200K/ }),
-    ]
-    expect(screen.getAllByText('claude-tiered')).toHaveLength(1)
-    expect(rows[0]).toHaveTextContent('≤ 200K')
-    expect(rows[1]).toHaveTextContent('> 200K')
-    for (const text of ['$1', '$3', '$0.1', '$1.25', '$2']) {
-      expect(within(rows[0]).getByText(text, { exact: true })).toBeVisible()
-    }
-    expect(within(rows[1]).getByText('$6')).toBeVisible()
+    await user.click(await screen.findByRole('button', { name: 'Anthropic' }))
+    const standard = screen.getByRole('row', { name: /claude-tiered/ })
     expect(
-      screen.queryByRole('link', { name: 'View billing details' })
+      screen.queryByRole('row', { name: /> 200K/ })
     ).not.toBeInTheDocument()
-    expect(rows[0]).not.toHaveTextContent('1998')
+    for (const text of ['$1', '$3', '$0.1', '$1.25']) {
+      expect(within(standard).getByText(text, { exact: true })).toBeVisible()
+    }
+    expect(
+      within(standard)
+        .getAllByTitle('Base price before group multiplier')
+        .map((el) => el.textContent)
+    ).toContain('$2')
+    const toggle = screen.getByRole('button', { name: 'Show price tiers' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await user.click(toggle)
+    expect(screen.getByRole('row', { name: /> 200K/ })).toHaveTextContent('$6')
+    expect(
+      screen.getByRole('button', { name: 'Hide price tiers' })
+    ).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getAllByText('claude-tiered')).toHaveLength(1)
+    await user.click(screen.getByRole('button', { name: 'Hide price tiers' }))
+    expect(
+      screen.queryByRole('row', { name: /> 200K/ })
+    ).not.toBeInTheDocument()
   })
 
   it('keeps models without vendor metadata visible within their group', async () => {
@@ -218,7 +207,7 @@ describe('Homepage model catalog', () => {
       'Failed to load pricing'
     )
     await user.click(screen.getByRole('button', { name: 'Retry' }))
-    expect(await screen.findByRole('table', { name: /Codex/ })).toBeVisible()
+    expect(await screen.findByRole('table', { name: /OpenAI/ })).toBeVisible()
     request.mockRestore()
   })
 })
