@@ -25,31 +25,24 @@ import {
   useState,
 } from 'react'
 
-import { getCookie, removeCookie, setCookie } from '@/lib/cookies'
 import {
   CONTENT_LAYOUT_VALUES,
   type ContentLayout,
   DEFAULT_THEME_CUSTOMIZATION,
   resolveThemeFont,
-  THEME_COOKIE_KEYS,
   THEME_FONT_VALUES,
+  THEME_RADIUS_VALUES,
   THEME_SCALE_VALUES,
   type ThemeCustomization,
   type ThemeFont,
   type ThemeRadius,
   type ThemeScale,
 } from '@/lib/theme-customization'
-
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
-
-function readCookie<T extends string>(
-  name: string,
-  allowed: ReadonlySet<T>,
-  fallback: T
-): T {
-  const value = getCookie(name)
-  return value && allowed.has(value as T) ? (value as T) : fallback
-}
+import {
+  readThemePreference,
+  THEME_STORAGE_KEYS,
+  writeThemePreference,
+} from '@/lib/theme-storage'
 
 function applyAttribute(name: string, value: string | null) {
   if (typeof document === 'undefined') return
@@ -94,25 +87,29 @@ export function ThemeCustomizationProvider(props: {
 }) {
   const preset = DEFAULT_THEME_CUSTOMIZATION.preset
   const [font, _setFont] = useState<ThemeFont>(() =>
-    readCookie<ThemeFont>(
-      THEME_COOKIE_KEYS.font,
+    readThemePreference<ThemeFont>(
+      THEME_STORAGE_KEYS.font,
       THEME_FONT_VALUES,
       DEFAULT_THEME_CUSTOMIZATION.font
     )
   )
-  const [radius, _setRadius] = useState<ThemeRadius>(
-    DEFAULT_THEME_CUSTOMIZATION.radius
+  const [radius, _setRadius] = useState<ThemeRadius>(() =>
+    readThemePreference<ThemeRadius>(
+      THEME_STORAGE_KEYS.radius,
+      THEME_RADIUS_VALUES,
+      DEFAULT_THEME_CUSTOMIZATION.radius
+    )
   )
   const [scale, _setScale] = useState<ThemeScale>(() =>
-    readCookie<ThemeScale>(
-      THEME_COOKIE_KEYS.scale,
+    readThemePreference<ThemeScale>(
+      THEME_STORAGE_KEYS.scale,
       THEME_SCALE_VALUES,
       DEFAULT_THEME_CUSTOMIZATION.scale
     )
   )
   const [contentLayout, _setContentLayout] = useState<ContentLayout>(() =>
-    readCookie<ContentLayout>(
-      THEME_COOKIE_KEYS.contentLayout,
+    readThemePreference<ContentLayout>(
+      THEME_STORAGE_KEYS.contentLayout,
       CONTENT_LAYOUT_VALUES,
       DEFAULT_THEME_CUSTOMIZATION.contentLayout
     )
@@ -138,7 +135,10 @@ export function ThemeCustomizationProvider(props: {
   }, [font, preset])
 
   useEffect(() => {
-    applyAttribute('data-theme-radius', radius === 'default' ? null : radius)
+    applyAttribute(
+      'data-theme-radius',
+      radius === DEFAULT_THEME_CUSTOMIZATION.radius ? null : radius
+    )
   }, [radius])
 
   useEffect(() => {
@@ -154,38 +154,34 @@ export function ThemeCustomizationProvider(props: {
 
   const setFont = useCallback((value: ThemeFont) => {
     _setFont(value)
-    if (value === DEFAULT_THEME_CUSTOMIZATION.font) {
-      removeCookie(THEME_COOKIE_KEYS.font)
-    } else {
-      setCookie(THEME_COOKIE_KEYS.font, value, COOKIE_MAX_AGE)
-    }
+    writeThemePreference(
+      THEME_STORAGE_KEYS.font,
+      value === DEFAULT_THEME_CUSTOMIZATION.font ? null : value
+    )
   }, [])
 
   const setRadius = useCallback((value: ThemeRadius) => {
     _setRadius(value)
-    if (value === DEFAULT_THEME_CUSTOMIZATION.radius) {
-      removeCookie(THEME_COOKIE_KEYS.radius)
-    } else {
-      setCookie(THEME_COOKIE_KEYS.radius, value, COOKIE_MAX_AGE)
-    }
+    writeThemePreference(
+      THEME_STORAGE_KEYS.radius,
+      value === DEFAULT_THEME_CUSTOMIZATION.radius ? null : value
+    )
   }, [])
 
   const setScale = useCallback((value: ThemeScale) => {
     _setScale(value)
-    if (value === DEFAULT_THEME_CUSTOMIZATION.scale) {
-      removeCookie(THEME_COOKIE_KEYS.scale)
-    } else {
-      setCookie(THEME_COOKIE_KEYS.scale, value, COOKIE_MAX_AGE)
-    }
+    writeThemePreference(
+      THEME_STORAGE_KEYS.scale,
+      value === DEFAULT_THEME_CUSTOMIZATION.scale ? null : value
+    )
   }, [])
 
   const setContentLayout = useCallback((value: ContentLayout) => {
     _setContentLayout(value)
-    if (value === DEFAULT_THEME_CUSTOMIZATION.contentLayout) {
-      removeCookie(THEME_COOKIE_KEYS.contentLayout)
-    } else {
-      setCookie(THEME_COOKIE_KEYS.contentLayout, value, COOKIE_MAX_AGE)
-    }
+    writeThemePreference(
+      THEME_STORAGE_KEYS.contentLayout,
+      value === DEFAULT_THEME_CUSTOMIZATION.contentLayout ? null : value
+    )
   }, [])
 
   const resetCustomization = useCallback(() => {

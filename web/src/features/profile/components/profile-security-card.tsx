@@ -34,8 +34,10 @@ import {
 } from '@/components/ui/form'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TitledCard } from '@/components/ui/titled-card'
+import { SecureVerificationDialog } from '@/features/auth/secure-verification'
+import { useAccountSecurity } from '@/features/security/hooks/use-account-security'
 
-import { updateUserProfile } from '../api'
+import { changeAccountPassword } from '../api'
 import {
   changePasswordSchema,
   type ChangePasswordValues,
@@ -57,20 +59,36 @@ export function ProfileSecurityCard(props: ProfileSecurityCardProps) {
       confirmPassword: '',
     },
   })
-  const submitting = form.formState.isSubmitting
+  const security = useAccountSecurity()
+  const submitting = form.formState.isSubmitting || security.pending
 
   async function onSubmit(values: ChangePasswordValues) {
     try {
-      const response = await updateUserProfile({
-        original_password: values.originalPassword,
-        password: values.newPassword,
+      const response = await security.run(async (signal) => {
+        const proof = await security.verify(
+          {
+            scope:
+              props.profile?.has_password === false
+                ? 'account.password.set'
+                : 'account.password.change',
+          },
+          signal,
+          props.profile?.has_password === false
+            ? undefined
+            : values.originalPassword
+        )
+        return changeAccountPassword(
+          {
+            password: values.newPassword,
+            ...(props.profile?.has_password === false
+              ? {}
+              : { original_password: values.originalPassword }),
+          },
+          proof,
+          signal
+        )
       })
-      if (!response.success) {
-        form.setError('root', {
-          message: response.message || t('Failed to change password'),
-        })
-        return
-      }
+      if (!response) return
       form.reset()
       toast.success(t('Password changed successfully'))
     } catch {
@@ -79,105 +97,109 @@ export function ProfileSecurityCard(props: ProfileSecurityCardProps) {
   }
 
   return (
-    <TitledCard
-      title={t('Change Password')}
-      disableHoverEffect
-      headerClassName='!pb-0 sm:!pb-0'
-    >
-      {props.loading ? (
-        <Skeleton className='h-48 w-full' />
-      ) : (
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className='space-y-5'
-            noValidate
-          >
-            <input
-              type='text'
-              name='username'
-              autoComplete='username'
-              value={props.profile?.username || ''}
-              readOnly
-              hidden
-            />
-            <fieldset
-              disabled={submitting || !props.profile}
-              className='grid min-w-0 gap-5 sm:grid-cols-2'
+    <>
+      <SecureVerificationDialog {...security.verificationDialogProps} />
+      <TitledCard
+        title={t('Change Password')}
+        disableHoverEffect
+        headerClassName='!pb-0 sm:!pb-0'
+      >
+        {props.loading ? (
+          <Skeleton className='h-48 w-full' />
+        ) : (
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className='space-y-5'
+              noValidate
             >
-              <FormField
-                control={form.control}
-                name='originalPassword'
-                render={({ field }) => (
-                  <FormItem className='sm:col-span-2 sm:max-w-[calc(50%-0.625rem)]'>
-                    <FormLabel>{t('Current Password')}</FormLabel>
-                    <FormControl>
-                      <PasswordInput
-                        {...field}
-                        className='h-10 [&_input]:h-10'
-                        autoComplete='current-password'
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              <input
+                type='text'
+                name='username'
+                autoComplete='username'
+                value={props.profile?.username || ''}
+                readOnly
+                hidden
               />
-              <FormField
-                control={form.control}
-                name='newPassword'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('New Password')}</FormLabel>
-                    <FormControl>
-                      <PasswordInput
-                        {...field}
-                        className='h-10 [&_input]:h-10'
-                        autoComplete='new-password'
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='confirmPassword'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('Confirm New Password')}</FormLabel>
-                    <FormControl>
-                      <PasswordInput
-                        {...field}
-                        className='h-10 [&_input]:h-10'
-                        autoComplete='new-password'
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </fieldset>
-            {form.formState.errors.root && (
-              <p role='alert' className='text-destructive text-sm'>
-                {form.formState.errors.root.message}
-              </p>
-            )}
-            <div className='flex flex-wrap items-center justify-between gap-4 border-t pt-5'>
-              <p className='text-muted-foreground text-xs'>
-                {t('Password must be between 8 and 20 characters')}
-              </p>
-              <Button
-                type='submit'
+              <fieldset
                 disabled={submitting || !props.profile}
-                className='h-10 [&_input]:h-10'
+                className='grid min-w-0 gap-5 sm:grid-cols-2'
               >
-                {submitting && <Loader2 className='size-4 animate-spin' />}
-                {submitting ? t('Changing...') : t('Change Password')}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      )}
-    </TitledCard>
+                <FormField
+                  control={form.control}
+                  name='originalPassword'
+                  render={({ field }) => (
+                    <FormItem className='sm:col-span-2 sm:max-w-[calc(50%-0.625rem)]'>
+                      <FormLabel>{t('Current Password')}</FormLabel>
+                      <FormControl>
+                        <PasswordInput
+                          {...field}
+                          className='h-10 [&_input]:h-10'
+                          autoComplete='current-password'
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='newPassword'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('New Password')}</FormLabel>
+                      <FormControl>
+                        <PasswordInput
+                          {...field}
+                          className='h-10 [&_input]:h-10'
+                          autoComplete='new-password'
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='confirmPassword'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Confirm New Password')}</FormLabel>
+                      <FormControl>
+                        <PasswordInput
+                          {...field}
+                          className='h-10 [&_input]:h-10'
+                          autoComplete='new-password'
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </fieldset>
+              {(form.formState.errors.root || security.error) && (
+                <p role='alert' className='text-destructive text-sm'>
+                  {form.formState.errors.root?.message ||
+                    security.error?.message}
+                </p>
+              )}
+              <div className='flex flex-wrap items-center justify-between gap-4 border-t pt-5'>
+                <p className='text-muted-foreground text-xs'>
+                  {t('Password must be between 8 and 128 characters')}
+                </p>
+                <Button
+                  type='submit'
+                  disabled={submitting || !props.profile}
+                  className='h-10 [&_input]:h-10'
+                >
+                  {submitting && <Loader2 className='size-4 animate-spin' />}
+                  {submitting ? t('Changing...') : t('Change Password')}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        )}
+      </TitledCard>
+    </>
   )
 }

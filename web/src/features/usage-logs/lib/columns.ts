@@ -33,7 +33,8 @@ import type { LogCategory } from '../types'
 export function useColumnsByCategory(
   logCategory: LogCategory,
   isAdmin: boolean,
-  isRoot: boolean
+  isRoot: boolean,
+  _showBillingSource = false
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): ColumnDef<any>[] {
   const commonColumns = useCommonLogsColumns(isAdmin, isRoot)

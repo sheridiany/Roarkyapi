@@ -94,12 +94,37 @@ test('profile exposes email, Google, and password actions while hiding other acc
 })
 
 test('inline password form rejects mismatched confirmation, reports server failure, then clears after success', async () => {
+  vi.spyOn(api, 'get').mockResolvedValue({
+    data: {
+      success: true,
+      data: {
+        scope: 'account.password.change',
+        methods: [{ method: 'password', available: true }],
+        oauth_providers: [],
+        password_encryption_enabled: false,
+      },
+    },
+  })
+  vi.spyOn(api, 'post').mockResolvedValue({
+    data: {
+      success: true,
+      data: {
+        scope: 'account.password.change',
+        method: 'password',
+        proof_token: 'password-proof',
+        expires_at: Math.floor(Date.now() / 1000) + 60,
+      },
+    },
+  })
+
   const put = vi
     .spyOn(api, 'put')
     .mockResolvedValueOnce({
       data: { success: false, message: 'Current password is incorrect' },
     })
-    .mockResolvedValueOnce({ data: { success: true } })
+    .mockResolvedValueOnce({
+      data: { success: true, data: { has_password: true } },
+    })
   render(
     <ProfileSecurityCard
       loading={false}
@@ -141,7 +166,10 @@ test('inline password form rejects mismatched confirmation, reports server failu
   expect(put).toHaveBeenLastCalledWith(
     '/api/user/self',
     { original_password: 'old-password', password: 'new-password' },
-    { acceptAuthRotation: true }
+    expect.objectContaining({
+      acceptAuthRotation: true,
+      headers: { 'X-Security-Proof': 'password-proof' },
+    })
   )
 })
 

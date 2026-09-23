@@ -24,7 +24,7 @@ export const changePasswordSchema = z
     newPassword: z
       .string()
       .min(8, 'Password must be at least 8 characters')
-      .max(20, 'Password must be between 8 and 20 characters'),
+      .max(128, 'Password must be between 8 and 128 characters'),
     confirmPassword: z.string().min(1, 'Passwords do not match'),
   })
   .refine((values) => values.newPassword !== values.originalPassword, {

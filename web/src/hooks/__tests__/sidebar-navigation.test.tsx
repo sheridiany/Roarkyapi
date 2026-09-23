@@ -64,7 +64,13 @@ it.each([true, false])(
     expect(names.includes('Model Testing')).toBe(playground)
     if (playground) {
       const personal = result.current.find((group) => group.id === 'personal')
-      expect(personal?.items.map((item) => item.url)).toEqual(['/plans', '/wallet', '/playground', '/profile'])
+      expect(personal?.items.map((item) => item.url)).toEqual([
+        '/plans',
+        '/wallet',
+        '/playground',
+        '/profile',
+        '/security',
+      ])
     }
     expect(names).not.toContain('Playground')
     expect(names).not.toContain('Chat')
