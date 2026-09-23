@@ -40,3 +40,17 @@ GPT-6 Sol/Luna 的 Chat Completions 兼容处理识别 developer role 和 max_co
 - 公网四模型均对 `17 + 24` 返回 `41`，分别新增消费日志 17923–17926。按实际输入、输出、缓存 token 与原有倍率独立复算，quota 为 564、66、137、385，总计 1152（$0.002304）；各一次扣费，无重复扣费。四枚短期限定模型的验收令牌均已禁用、过期并软删除。
 - 首次验收脚本在成功校验回答后，查询日志误用了 channel 列（实际为 channel_id）；随后直接核对原消费日志和令牌余额，没有重复发起收费请求。证据 live-check-reconciled.json。
 - 原有 options、vendors、registration_invitations 逐行一致，SQLite 完整性正常；管理员登录与登录后价格表的生产视觉检查仍未完成，价格展示已通过组件回归和候选后端数据验收。
+
+## ChatGPT Pro 账号接入（后续用户请求）
+
+用户在 Ego 官方设备授权页自行登录；服务器官方 Codex CLI 完成授权，未使用聊天中提供的密码。用户明确选择加入现有 Codex 分组供站内用户使用。
+
+- 新渠道 12：OpenAI · Pro OAuth，类型 57，地址 https://chatgpt.com，Codex 分组，已启用。
+- 使用独立别名 codex/gpt-6-astra、codex/gpt-6-sol、codex/gpt-6-luna、codex/gpt-5.6-sol、codex/gpt-5.6-terra、codex/gpt-5.5，映射到官方同名模型，避免 Responses 专用渠道改变原 Chat Completions 路由。调用 /v1/responses，stream=true；模型资料中明确接口要求。
+- 六个别名复制对应基础模型的现行站内计费表达式，沿用 Codex 0.5 倍率；原基础模型价格不变。上游为订阅额度消费，这些价格是站内结算配置。
+- 官方模型列表还含 gpt-5.6-luna、gpt-reserve、codex-auto-review，本次未上架这些未完成独立定价/用途验收的型号。
+- 六模型均经公网网关流式返回 41，全部命中渠道 12，产生六条消费记录，总计 293 quota（$0.000586）；临时验收令牌已禁用、过期并软删除。
+- 自动刷新任务已启动，每 10 分钟检查，到期前 24 小时进入刷新范围。本次未等待令牌实际到期，不声称完成到期轮换实测。
+- 授权仅保存在服务器渠道凭据中，临时 CLI auth.json 副本已删除，没有将密码/访问令牌/刷新令牌写入仓库。保留的数据库备份按敏感文件处理。
+- 恢复点 /opt/roarkapi/backups/codex-account-20260923-115549。停用新渠道即可停止分流；恢复配置时仅删除新别名及对应计费项目，不以旧库覆盖后续用户数据。
+- Ego 任务空间 12 已交给用户登录，未在用户接管后操作或关闭其页面。
