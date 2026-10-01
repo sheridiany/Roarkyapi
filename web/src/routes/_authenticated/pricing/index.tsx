@@ -20,7 +20,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import z from 'zod'
 
 import { Pricing } from '@/features/pricing'
-import { getFreshModuleAccess } from '@/lib/nav-modules'
+import { getModuleAccessForGuard } from '@/lib/nav-modules'
 
 const pricingSearchSchema = z.object({
   search: z.string().optional(),
@@ -37,8 +37,8 @@ const pricingSearchSchema = z.object({
 
 export const Route = createFileRoute('/_authenticated/pricing/')({
   validateSearch: pricingSearchSchema,
-  beforeLoad: async () => {
-    const access = await getFreshModuleAccess('pricing')
+  beforeLoad: async ({ context }) => {
+    const access = await getModuleAccessForGuard(context.queryClient, 'pricing')
     if (!access.enabled) {
       throw redirect({ to: '/' })
     }

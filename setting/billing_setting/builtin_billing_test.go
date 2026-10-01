@@ -54,7 +54,7 @@ func TestGPT6AstraBuiltinBilling(t *testing.T) {
 			}
 			params := service.BuildTieredTokenParams(usage, false, billingexpr.UsedVars(expression))
 			result, err := billingexpr.ComputeTieredQuotaWithRequest(&billingexpr.BillingSnapshot{
-				ExprString: expression, GroupRatio: 1, QuotaPerUnit: 500000,
+				ExprString: expression, ExprHash: billingexpr.ExprHashString(expression), GroupRatio: 1, QuotaPerUnit: 500000,
 			}, params, billingexpr.RequestInput{Body: []byte(tc.request)})
 			require.NoError(t, err)
 			assert.Equal(t, tc.quota, result.ActualQuotaAfterGroup)
@@ -106,6 +106,90 @@ func TestGPT6AstraBuiltinBilling(t *testing.T) {
 			actual, ok := billing_setting.GetBillingExpr("gpt-6-astra")
 			assert.Equal(t, tc.expr, actual)
 			assert.Equal(t, tc.expr != "", ok)
+		})
+	}
+}
+
+func TestImageModelBuiltinPricesAndOverrides(t *testing.T) {
+	settings := config.GlobalConfig.Get("billing_setting").(*billing_setting.BillingSetting)
+	saved := *settings
+	savedRatios, savedPrices := ratio_setting.ModelRatio2JSONString(), ratio_setting.ModelPrice2JSONString()
+	t.Cleanup(func() {
+		*settings = saved
+		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(savedRatios))
+		require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(savedPrices))
+	})
+	for _, name := range []string{"gpt-image-2", "gpt-image-2.5-sunburst", "gpt-image-2.5-flare"} {
+		t.Run(name, func(t *testing.T) {
+			*settings = billing_setting.BillingSetting{BillingMode: map[string]string{}, BillingExpr: map[string]string{}}
+			require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{}`))
+			require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{}`))
+			expression, ok := billing_setting.GetBillingExpr(name)
+			require.True(t, ok)
+			usage := &dto.Usage{PromptTokens: 1000, CompletionTokens: 100, PromptTokensDetails: dto.InputTokenDetails{
+				CachedTokens: 300, ImageTokens: 600, CachedTokensDetails: &dto.CachedTokenDetails{ImageTokens: common.GetPointer(200)},
+			}}
+			result, err := billingexpr.ComputeTieredQuota(&billingexpr.BillingSnapshot{ExprString: expression, ExprHash: billingexpr.ExprHashString(expression), GroupRatio: 1, QuotaPerUnit: 500000},
+				service.BuildTieredTokenParams(usage, false, billingexpr.UsedVars(expression)))
+			require.NoError(t, err)
+			assert.Equal(t, 4113, result.ActualQuotaAfterGroup)
+			encoded, err := common.Marshal(map[string]float64{name: 0})
+			require.NoError(t, err)
+			require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(string(encoded)))
+			assert.Equal(t, "ratio", billing_setting.GetBillingMode(name))
+			require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{}`))
+			require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(string(encoded)))
+			assert.Equal(t, "ratio", billing_setting.GetBillingMode(name))
+			settings.BillingMode[name] = "tiered_expr"
+			settings.BillingExpr[name] = `tier("custom", p * 7)`
+			actual, ok := billing_setting.GetBillingExpr(name)
+			require.True(t, ok)
+			assert.Equal(t, settings.BillingExpr[name], actual)
+		})
+	}
+}
+
+func TestSeptemberModelBuiltinBilling(t *testing.T) {
+	settings := config.GlobalConfig.Get("billing_setting").(*billing_setting.BillingSetting)
+	saved := *settings
+	savedRatios, savedPrices := ratio_setting.ModelRatio2JSONString(), ratio_setting.ModelPrice2JSONString()
+	t.Cleanup(func() {
+		*settings = saved
+		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(savedRatios))
+		require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(savedPrices))
+	})
+	*settings = billing_setting.BillingSetting{BillingMode: map[string]string{}, BillingExpr: map[string]string{}}
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{}`))
+	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{}`))
+	for _, tc := range []struct {
+		name, model                               string
+		input, output, cached, written, written1h int
+		claude                                    bool
+		quota                                     int
+	}{
+		{"sol cached boundary", "gpt-6-sol", 272000, 1000, 200000, 20000, 0, false, 102000},
+		{"sol long context", "gpt-6-sol", 272001, 1000, 200000, 20000, 0, false, 201502},
+		{"luna cached boundary", "gpt-6-luna", 272000, 1000, 200000, 20000, 0, false, 5100},
+		{"luna long context", "gpt-6-luna", 272001, 1000, 200000, 20000, 0, false, 10075},
+		{"opus both cache durations", "claude-opus-5-5", 1000, 100, 1000, 1000, 1000, true, 9600},
+		{"opus no long premium", "claude-opus-5-5", 900000, 100, 0, 0, 0, true, 1801000},
+		{"grok below boundary", "grok-4.7", 199999, 1000, 100000, 0, 0, false, 127999},
+		{"grok exact boundary", "grok-4.7", 200000, 1000, 100000, 0, 0, false, 256000},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, billing_setting.BillingModeTieredExpr, billing_setting.GetBillingMode(tc.model))
+			expression, ok := billing_setting.GetBillingExpr(tc.model)
+			require.True(t, ok)
+			usage := &dto.Usage{PromptTokens: tc.input, CompletionTokens: tc.output,
+				PromptTokensDetails: dto.InputTokenDetails{CachedTokens: tc.cached, CacheWriteTokens: tc.written}}
+			if tc.claude {
+				usage.UsageSemantic = "anthropic"
+				usage.ClaudeCacheCreation5mTokens = tc.written
+				usage.ClaudeCacheCreation1hTokens = tc.written1h
+			}
+			result, err := billingexpr.ComputeTieredQuota(&billingexpr.BillingSnapshot{ExprString: expression, ExprHash: billingexpr.ExprHashString(expression), GroupRatio: 1, QuotaPerUnit: 500000}, service.BuildTieredTokenParams(usage, tc.claude, billingexpr.UsedVars(expression)))
+			require.NoError(t, err)
+			assert.Equal(t, tc.quota, result.ActualQuotaAfterGroup)
 		})
 	}
 }

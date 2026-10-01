@@ -32,6 +32,8 @@ import {
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Switch } from '@/components/ui/switch'
 import { api } from '@/lib/api'
+import { handleServerError } from '@/lib/handle-server-error'
+import { ROLE } from '@/lib/roles'
 import { isSidebarServiceModuleVisible } from '@/lib/service-visibility'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -78,6 +80,11 @@ export function SidebarModulesCard() {
           description: t('API usage records'),
         },
         {
+          key: 'audit',
+          title: t('Audit Logs'),
+          description: t('Login, security and access records'),
+        },
+        {
           key: 'midjourney',
           title: t('Drawing Logs'),
           description: t('Drawing task records'),
@@ -103,6 +110,11 @@ export function SidebarModulesCard() {
           key: 'personal',
           title: t('Personal Settings'),
           description: t('Personal info settings'),
+        },
+        {
+          key: 'security',
+          title: t('Security & Access'),
+          description: t('Manage your security settings and account access'),
         },
       ],
     },
@@ -166,10 +178,10 @@ export function SidebarModulesCard() {
         }
         toast.success(t('Saved successfully'))
       } else {
-        toast.error(res.data.message || t('Save failed'))
+        handleServerError(res.data, t('Save failed'))
       }
-    } catch {
-      toast.error(t('Save failed, please retry'))
+    } catch (error) {
+      handleServerError(error, t('Save failed, please retry'))
     } finally {
       setLoading(false)
     }
@@ -224,8 +236,11 @@ export function SidebarModulesCard() {
               </div>
               <div className='mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1'>
                 {section.modules
-                  .filter((module) =>
-                    isSidebarServiceModuleVisible(section.key, module.key)
+                  .filter(
+                    (module) =>
+                      (module.key !== 'audit' ||
+                        (currentUser?.role ?? 0) >= ROLE.ADMIN) &&
+                      isSidebarServiceModuleVisible(section.key, module.key)
                   )
                   .map((mod) => (
                     <div

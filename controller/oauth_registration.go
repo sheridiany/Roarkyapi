@@ -47,7 +47,7 @@ func beginInvitedOAuthRegistration(c *gin.Context, providerName string, provider
 	if source.InvitationID > 0 {
 		registered, err := finishInvitedOAuthRegistration(token, source.InvitationID)
 		if err == nil {
-			setupLogin(registered, c)
+			setupLogin(registered, nil, c)
 			return
 		}
 		if !errors.Is(err, model.ErrRegistrationInvitationInvalid) {
@@ -88,7 +88,7 @@ func CompleteInvitedOAuthRegistration(c *gin.Context) {
 		}
 		return
 	}
-	setupLogin(user, c)
+	setupLogin(user, nil, c)
 }
 
 func finishInvitedOAuthRegistration(token string, invitationID int) (*model.User, error) {

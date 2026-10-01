@@ -22,6 +22,7 @@ import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { DateTimePicker } from '@/components/datetime-picker'
 import { Main } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -223,25 +224,37 @@ export function UserUsageLogs() {
             applyFilters()
           }}
         >
-          <Input
-            type='datetime-local'
-            aria-label={t('Start time')}
-            required
-            max={draft.end}
-            value={draft.start}
-            onChange={(event) =>
-              setDraft({ ...draft, start: event.target.value })
-            }
+          <DateTimePicker
+            compact
+            allowClear={false}
+            className='gateway-log-date'
+            placeholder={t('Start time')}
+            value={new Date(draft.start)}
+            maxDate={new Date(draft.end)}
+            onChange={(date) => {
+              if (date) {
+                setDraft({
+                  ...draft,
+                  start: dayjs(date).format('YYYY-MM-DDTHH:mm'),
+                })
+              }
+            }}
           />
-          <Input
-            type='datetime-local'
-            aria-label={t('End time')}
-            required
-            min={draft.start}
-            value={draft.end}
-            onChange={(event) =>
-              setDraft({ ...draft, end: event.target.value })
-            }
+          <DateTimePicker
+            compact
+            allowClear={false}
+            className='gateway-log-date'
+            placeholder={t('End time')}
+            value={new Date(draft.end)}
+            minDate={new Date(draft.start)}
+            onChange={(date) => {
+              if (date) {
+                setDraft({
+                  ...draft,
+                  end: dayjs(date).format('YYYY-MM-DDTHH:mm'),
+                })
+              }
+            }}
           />
           {active === 'api' && (
             <>

@@ -18,22 +18,27 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { z } from 'zod'
 
-export const changePasswordSchema = z
-  .object({
-    originalPassword: z.string().min(1, 'Please enter your current password'),
-    newPassword: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .max(20, 'Password must be between 8 and 20 characters'),
-    confirmPassword: z.string().min(1, 'Passwords do not match'),
-  })
-  .refine((values) => values.newPassword !== values.originalPassword, {
-    message: 'New password must be different from current password',
-    path: ['newPassword'],
-  })
-  .refine((values) => values.newPassword === values.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  })
+export const createChangePasswordSchema = (hasPassword = true) =>
+  z
+    .object({
+      originalPassword: hasPassword
+        ? z.string().min(1, 'Please enter your current password')
+        : z.string(),
+      newPassword: z
+        .string()
+        .min(8, 'Password must be at least 8 characters')
+        .max(128, 'Password must be between 8 and 128 characters'),
+      confirmPassword: z.string().min(1, 'Passwords do not match'),
+    })
+    .refine((values) => values.newPassword !== values.originalPassword, {
+      message: 'New password must be different from current password',
+      path: ['newPassword'],
+    })
+    .refine((values) => values.newPassword === values.confirmPassword, {
+      message: 'Passwords do not match',
+      path: ['confirmPassword'],
+    })
+
+export const changePasswordSchema = createChangePasswordSchema()
 
 export type ChangePasswordValues = z.infer<typeof changePasswordSchema>

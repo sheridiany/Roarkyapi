@@ -1,6 +1,9 @@
 package openai
 
 var ModelList = []string{
+	"gpt-6-sol",
+	"gpt-6-luna",
+
 	"gpt-6-astra",
 	"gpt-3.5-turbo", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-1106", "gpt-3.5-turbo-0125",
 	"gpt-3.5-turbo-16k", "gpt-3.5-turbo-16k-0613",
@@ -68,7 +71,7 @@ var ModelList = []string{
 	"text-davinci-edit-001",
 	"davinci-002", "babbage-002",
 	"dall-e-2", "dall-e-3",
-	"gpt-image-1", "gpt-image-1-mini", "gpt-image-1.5", "gpt-image-2",
+	"gpt-image-1", "gpt-image-1-mini", "gpt-image-1.5", "gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst",
 	"chatgpt-image-latest",
 	"whisper-1",
 	"tts-1", "tts-1-1106", "tts-1-hd", "tts-1-hd-1106",

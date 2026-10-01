@@ -23,7 +23,7 @@ import XAI from '@lobehub/icons/es/XAI/components/Mono'
 
 import { ProviderCardArtwork } from './provider-card-artwork'
 
-// Official text/reasoning/coding model releases checked on 2026-09-06.
+// Official text/reasoning/coding model releases checked on 2026-09-23.
 // Includes the enabled image generation model; excludes audio-only models,
 // aliases, and restricted cybersecurity models.
 // Sources: https://developers.openai.com/api/docs/models/all
@@ -35,11 +35,14 @@ const providers = [
     name: 'OpenAI',
     models: [
       'GPT-6 Astra',
+      'GPT-6 Sol',
+      'GPT-6 Luna',
       'GPT-5.6 Sol',
       'GPT-5.6 Terra',
-      'GPT-5.6 Luna',
       'GPT-5.5',
       'GPT Image 2',
+      'GPT Image 2.5 Flare',
+      'GPT Image 2.5 Sunburst',
     ],
     family: 'ChatGPT',
     icon: OpenAI,
@@ -51,6 +54,7 @@ const providers = [
     name: 'Anthropic',
     models: [
       'Claude Fable 5.1',
+      'Claude Opus 5.5',
       'Claude Opus 5',
       'Claude Sonnet 5',
       'Claude Fable 5',
@@ -64,7 +68,16 @@ const providers = [
   },
   {
     name: 'Gemini',
-    models: ['Gemini 3.8 Flash', 'Gemini 3.7 Flash', 'Gemini 3.5 Flash-Lite'],
+    models: [
+      'Gemini 3.8 Flash',
+      'Gemini 3.7 Flash',
+      'Gemini 3.5 Flash-Lite',
+      'Gemini 3 Pro Image',
+      'Gemini 3 Pro Image Preview',
+      'Gemini 3.1 Flash Image',
+      'Gemini 3.1 Flash Image Preview',
+      'Gemini 3.1 Flash-Lite Image',
+    ],
     family: 'Gemini',
     icon: Gemini,
     tone: 'gemini',
@@ -73,7 +86,15 @@ const providers = [
   },
   {
     name: 'xAI',
-    models: ['Grok 4.6', 'Grok 4.5'],
+    models: [
+      'Grok 4.7',
+      'Grok 4.6',
+      'Grok 4.5',
+      'Grok Imagine',
+      'Grok Imagine Image',
+      'Grok Imagine Image 2.0',
+      'Grok Imagine Image Quality',
+    ],
     family: 'Grok',
     icon: XAI,
     tone: 'xai',

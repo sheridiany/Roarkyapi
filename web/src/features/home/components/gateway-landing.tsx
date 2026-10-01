@@ -25,18 +25,22 @@ import {
 } from '@/components/layout/components/footer'
 import { LayoutDashboard } from '@/components/navigation-icons'
 import { useSystemConfig } from '@/hooks/use-system-config'
+import { toIntlLocale } from '@/i18n/languages'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { ProviderCards } from './provider-cards'
 import { TerminalGridBackground } from './terminal-grid-background'
 
 export function GatewayLanding() {
-  const { t } = useTranslation(undefined, { lng: 'en' })
+  const { t, i18n } = useTranslation()
   const { systemName, logo } = useSystemConfig()
   const isAuthenticated = useAuthStore((state) => !!state.auth.user)
 
   return (
-    <main className='mono-home' lang='en'>
+    <main
+      className='mono-home'
+      lang={toIntlLocale(i18n.resolvedLanguage || i18n.language)}
+    >
       <TerminalGridBackground />
       <header className='mono-home-header'>
         <div className='mono-home-brand'>

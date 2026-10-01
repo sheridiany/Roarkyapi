@@ -377,7 +377,8 @@
 .gateway-vendors button {
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 8px 14px;
+  min-height: 40px;
   font-size: 14px;
   color: var(--muted-foreground);
   cursor: pointer;
@@ -394,15 +395,38 @@
   font-size: 12px;
   color: var(--muted-foreground);
 }
-.gateway-group select {
+.gateway-group .gateway-group-trigger {
   background: var(--background);
   color: var(--foreground);
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
+  min-height: 42px;
   min-width: 180px;
   max-width: min(320px, 75vw);
+}
+.gateway-group-menu {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  padding: 5px;
+  max-width: calc(100vw - 24px);
+}
+.gateway-group-option {
+  min-height: 42px;
+  padding: 10px 32px 10px 12px;
+  font-size: 14px;
+}
+.gateway-group-option[data-selected],
+.gateway-group-option[data-highlighted] {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.gateway-group-option [data-slot='select-item-text'] {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .gateway-price-note {
   font-size: 12px;
@@ -1164,13 +1188,12 @@
   gap: 8px;
   min-width: 0;
 }
-.gateway-user-logs-filters [type='datetime-local'] {
-  width: 180px;
-  height: 36px;
-  padding-inline: 10px;
+.gateway-user-logs-filters .gateway-log-date {
+  width: 205px;
+  padding: 0;
   font-size: 12px;
 }
-.gateway-user-logs-filters [data-slot='input']:not([type='datetime-local']) {
+.gateway-user-logs-filters > [data-slot='input'] {
   width: 128px;
   height: 36px;
   font-size: 12px;
@@ -1318,12 +1341,12 @@ button.gateway-user-log-cost:hover {
     gap: 12px;
     padding-inline: 12px;
   }
-  .gateway-user-logs-filters [type='datetime-local'] {
+  .gateway-user-logs-filters .gateway-log-date {
     flex: 1;
     width: calc(50% - 4px);
     min-width: 0;
   }
-  .gateway-user-logs-filters [data-slot='input']:not([type='datetime-local']) {
+  .gateway-user-logs-filters > [data-slot='input'] {
     flex: 1;
   }
   .gateway-user-logs-toolbar [data-slot='tabs-list'] {
@@ -1374,6 +1397,108 @@ button.gateway-user-log-cost:hover {
 .gateway-user-log-table th:nth-child(12) {
   width: 90px;
 }
-.dark .gateway-user-logs-filters [type='datetime-local'] {
+.dark .gateway-user-logs-filters .gateway-log-date {
   color-scheme: dark;
+}
+
+/* Compact catalog: one group, provider sections, expandable billing tiers. */
+.gateway-price-value {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.gateway-price-value del {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  opacity: 0.8;
+}
+.gateway-ratio-badge {
+  border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 7%, transparent);
+  white-space: nowrap;
+}
+.gateway-model-name {
+  display: block;
+}
+.gateway-tier-context {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 400;
+}
+.gateway-model-table .gateway-tier-toggle {
+  min-height: 28px;
+  height: auto;
+  padding: 2px 6px;
+  margin-inline-start: 6px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 400;
+}
+.gateway-model-table table {
+  min-width: 720px;
+}
+.gateway-model-table tbody th {
+  width: 34%;
+}
+.gateway-model-heading > span {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+.gateway-group {
+  flex-wrap: wrap;
+}
+.gateway-table-scroll:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+@media (max-width: 640px) {
+  .gateway-model-table th,
+  .gateway-model-table td {
+    padding: 10px 12px;
+  }
+  .gateway-model-table thead th:first-child,
+  .gateway-model-table tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--background);
+    width: 170px;
+    min-width: 170px;
+    max-width: 170px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .gateway-model-table .gateway-tier-toggle {
+    min-height: 36px;
+    margin-inline-start: 0;
+  }
+  .gateway-price-value {
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-end;
+  }
+}
+
+.gateway-log-date > button {
+  width: 100%;
+  height: 36px;
+  font-size: 12px;
+  padding-inline: 10px;
+}
+@media (max-width: 767px) {
+  .gateway-user-logs-filters .gateway-log-date {
+    flex: 1 1 100%;
+    padding: 0;
+  }
+  .gateway-log-date > button {
+    height: 42px;
+  }
 }

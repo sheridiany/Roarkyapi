@@ -7,7 +7,7 @@ import (
 
 // GetEndpointTypesByChannelType 获取渠道最优先端点类型（所有的渠道都支持 OpenAI 端点）
 func GetEndpointTypesByChannelType(channelType int, modelName string) []constant.EndpointType {
-	if modelName == "gpt-image-2" || strings.HasPrefix(modelName, "gpt-image-2-") {
+	if (strings.HasPrefix(modelName, "grok-imagine") && IsImageGenerationModel(modelName)) || modelName == "gpt-image-2" || strings.HasPrefix(modelName, "gpt-image-2-") || strings.HasPrefix(modelName, "gpt-image-2.5-") {
 		return []constant.EndpointType{constant.EndpointTypeImageGeneration}
 	}
 	var endpointTypes []constant.EndpointType
@@ -34,6 +34,8 @@ func GetEndpointTypesByChannelType(channelType int, modelName string) []constant
 		endpointTypes = []constant.EndpointType{constant.EndpointTypeOpenAI}
 	case constant.ChannelTypeXai:
 		endpointTypes = []constant.EndpointType{constant.EndpointTypeOpenAI, constant.EndpointTypeOpenAIResponse}
+	case constant.ChannelTypeVLLM, constant.ChannelTypeSGLang:
+		endpointTypes = GetAdvancedCustomPreset(channelType).SupportedEndpointTypesForModel(modelName)
 	case constant.ChannelTypeSora:
 		endpointTypes = []constant.EndpointType{constant.EndpointTypeOpenAIVideo}
 	case constant.ChannelTypeSub2API, constant.ChannelTypeNewAPI:

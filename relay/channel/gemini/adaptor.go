@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/relay/channel"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/constant"
@@ -64,6 +65,51 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 }
 
 func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.ImageRequest) (any, error) {
+	if common.IsGeminiImageModel(info.UpstreamModelName) {
+		if request.N != nil && *request.N > 1 {
+			return nil, errors.New("Gemini image generation supports n=1")
+		}
+		if request.Stream != nil && *request.Stream {
+			return nil, errors.New("Gemini Images API streaming is not supported")
+		}
+		imageConfig := map[string]string{}
+		switch request.Size {
+		case "", "auto":
+		case "256x256", "512x512", "1024x1024":
+			imageConfig["aspectRatio"] = "1:1"
+		case "1536x1024":
+			imageConfig["aspectRatio"] = "3:2"
+		case "1024x1536":
+			imageConfig["aspectRatio"] = "2:3"
+		case "1792x1024":
+			imageConfig["aspectRatio"] = "16:9"
+		case "1024x1792":
+			imageConfig["aspectRatio"] = "9:16"
+		case "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9":
+			imageConfig["aspectRatio"] = request.Size
+		default:
+			return nil, errors.New("unsupported Gemini image size; use a supported aspect ratio")
+		}
+		switch request.Quality {
+		case "", "auto", "standard", "low", "medium":
+		case "1K", "2K", "4K":
+			imageConfig["imageSize"] = request.Quality
+		case "high", "hd":
+			imageConfig["imageSize"] = "2K"
+		default:
+			return nil, errors.New("unsupported Gemini image quality; use auto, 1K, 2K or 4K")
+		}
+		var config []byte
+		if len(imageConfig) > 0 {
+			var err error
+			config, err = common.Marshal(imageConfig)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return &dto.GeminiChatRequest{Contents: []dto.GeminiChatContent{{Role: "user", Parts: []dto.GeminiPart{{Text: request.Prompt}}}}, GenerationConfig: dto.GeminiChatGenerationConfig{ResponseModalities: []string{"TEXT", "IMAGE"}, ImageConfig: config}}, nil
+	}
+
 	if !strings.HasPrefix(info.UpstreamModelName, "imagen") {
 		return nil, errors.New("not supported model for image generation, only imagen models are supported")
 	}
@@ -195,9 +241,9 @@ func (a *Adaptor) ConvertEmbeddingRequest(c *gin.Context, info *relaycommon.Rela
 	// batch endpoint upstream to avoid payload/endpoint mismatches.
 	info.IsGeminiBatchEmbedding = true
 	// process all inputs
-	geminiRequests := make([]map[string]interface{}, 0, len(inputs))
+	geminiRequests := make([]map[string]any, 0, len(inputs))
 	for _, input := range inputs {
-		geminiRequest := map[string]interface{}{
+		geminiRequest := map[string]any{
 			"model": fmt.Sprintf("models/%s", info.UpstreamModelName),
 			"content": dto.GeminiChatContent{
 				Parts: []dto.GeminiPart{
@@ -221,7 +267,7 @@ func (a *Adaptor) ConvertEmbeddingRequest(c *gin.Context, info *relaycommon.Rela
 		geminiRequests = append(geminiRequests, geminiRequest)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"requests": geminiRequests,
 	}, nil
 }
@@ -262,7 +308,7 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycom
 		}
 	}
 
-	if strings.HasPrefix(info.UpstreamModelName, "imagen") {
+	if strings.HasPrefix(info.UpstreamModelName, "imagen") || (info.RelayMode == constant.RelayModeImagesGenerations && common.IsGeminiImageModel(info.UpstreamModelName)) {
 		return GeminiImageHandler(c, info, resp)
 	}
 

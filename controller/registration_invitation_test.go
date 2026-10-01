@@ -169,10 +169,10 @@ func TestRegistrationInvitationLifecycle(t *testing.T) {
 	provider := &oauth.GitHubProvider{}
 	oauthUser := &oauth.OAuthUser{ProviderUserID: "invite-" + suffix}
 	c, _ = gin.CreateTestContext(httptest.NewRecorder())
-	_, err = findOrCreateOAuthUser(c, provider, oauthUser, "")
+	_, _, err = findOrCreateOAuthUser(c, provider, oauthUser, nil, "")
 	require.ErrorIs(t, err, errOAuthInvitationRequired)
 	require.NoError(t, db.Model(&model.User{}).Where("id = ?", used.UsedUserId).Update("github_id", oauthUser.ProviderUserID).Error)
-	linked, err := findOrCreateOAuthUser(c, provider, oauthUser, "")
+	linked, _, err := findOrCreateOAuthUser(c, provider, oauthUser, nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, used.UsedUserId, linked.Id)
 

@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import type { UserPermissions } from '@/stores/auth-store'
+
 // ============================================================================
 // Profile Type Definitions
 // ============================================================================
@@ -33,6 +35,12 @@ export interface ApiResponse<T = unknown> {
  * User profile data
  */
 export interface UserProfile {
+  aff_count?: number
+  aff_quota?: number
+  aff_history_quota?: number
+  aff_code?: string
+  has_password?: boolean
+  permissions?: UserPermissions
   /** User ID */
   id: number
   /** Username */
@@ -121,6 +129,19 @@ export interface UpdateUserRequest {
   original_password?: string
 }
 
+export interface AccountSecurityResult {
+  notification_warning?: boolean
+}
+
+export interface EmailBindingFlow extends AccountSecurityResult {
+  flow_token: string
+  email: string
+  current_email?: string
+  old_email_required: boolean
+  expires_at: number
+  resend_at: number
+}
+
 /**
  * User settings update request
  */
@@ -137,13 +158,6 @@ export interface UpdateUserSettingsRequest {
   accept_unset_model_ratio_model?: boolean
   record_ip_log?: boolean
   upstream_model_update_notify_enabled?: boolean
-}
-
-/**
- * Account deletion request
- */
-export interface DeleteAccountRequest {
-  password?: string
 }
 
 /**
@@ -168,11 +182,50 @@ export interface TwoFAStatus {
   backup_codes_remaining: number
 }
 
+// ============================================================================
+// Checkin Type Definitions
+// ============================================================================
+
 /**
- * Two-Factor Authentication Setup Data
+ * Checkin record for a specific date
  */
-export interface TwoFASetupData {
-  secret: string
-  qr_code_data: string
-  backup_codes: string[]
+export interface CheckinRecord {
+  /** Check-in date (YYYY-MM-DD) */
+  checkin_date: string
+  /** Quota awarded for this check-in */
+  quota_awarded: number
+}
+
+/**
+ * Checkin statistics
+ */
+export interface CheckinStats {
+  /** Whether user has checked in today */
+  checked_in_today: boolean
+  /** Total number of check-ins */
+  total_checkins: number
+  /** Total quota earned from check-ins */
+  total_quota: number
+  /** Current month check-in count */
+  checkin_count: number
+  /** Check-in records for the queried month */
+  records: CheckinRecord[]
+}
+
+/**
+ * Check-in status response
+ */
+export interface CheckinStatusResponse {
+  /** Whether check-in feature is enabled */
+  enabled: boolean
+  /** Check-in statistics */
+  stats: CheckinStats
+}
+
+/**
+ * Check-in action response
+ */
+export interface CheckinResponse {
+  /** Quota awarded for this check-in */
+  quota_awarded: number
 }

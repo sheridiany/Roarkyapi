@@ -29,6 +29,7 @@ import userEvent from '@testing-library/user-event'
 import i18next from 'i18next'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
+import zh from '@/i18n/locales/zh.json'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { Home } from '../index'
@@ -50,7 +51,8 @@ it.each([false, true])(
         .getState()
         .auth.setUser({ id: 1, username: 'preview', role: 1 })
     }
-    await i18next.changeLanguage('zh')
+    i18next.addResourceBundle('zhCN', 'translation', zh.translation)
+    await i18next.changeLanguage('zhCN')
     const root = createRootRoute()
     const home = createRoute({
       getParentRoute: () => root,
@@ -84,33 +86,52 @@ it.each([false, true])(
     )
     expect(
       await screen.findByRole('heading', {
-        name: /Your models\.\s*One gateway\./,
+        name: `${zh.translation['Your models.']} ${zh.translation['One gateway.']}`,
       })
     ).toBeVisible()
     expect(screen.getAllByRole('article')).toHaveLength(4)
     for (const [name, count] of [
-      ['OpenAI', 6],
-      ['Anthropic', 5],
-      ['Gemini', 3],
-      ['xAI', 2],
+      ['OpenAI', 9],
+      ['Anthropic', 6],
+      ['Gemini', 8],
+      ['xAI', 7],
     ] as const) {
       const card = screen.getByRole('article', { name })
       expect(card).toBeVisible()
       expect(within(card).getAllByRole('listitem')).toHaveLength(count)
     }
     expect(screen.getByRole('listitem', { name: 'GPT Image 2' })).toBeVisible()
-    expect(screen.getByRole('main')).toHaveAttribute('lang', 'en')
     expect(
-      screen.getByRole('link', { name: 'Privacy Policy' })
+      screen.getByRole('listitem', { name: 'GPT Image 2.5 Flare' })
+    ).toBeVisible()
+    expect(
+      screen.getByRole('listitem', { name: 'GPT Image 2.5 Sunburst' })
+    ).toBeVisible()
+    for (const name of [
+      'GPT-6 Sol',
+      'GPT-6 Luna',
+      'Claude Opus 5.5',
+      'Grok 4.7',
+      'Gemini 3 Pro Image',
+      'Gemini 3 Pro Image Preview',
+      'Gemini 3.1 Flash Image',
+      'Gemini 3.1 Flash Image Preview',
+      'Gemini 3.1 Flash-Lite Image',
+    ]) {
+      expect(screen.getByRole('listitem', { name })).toBeVisible()
+    }
+    expect(screen.getByRole('main')).toHaveAttribute('lang', 'zh-CN')
+    expect(
+      screen.getByRole('link', { name: zh.translation['Privacy Policy'] })
     ).toHaveAttribute('href', '/privacy-policy')
     expect(
-      screen.getByRole('link', { name: 'User Agreement' })
+      screen.getByRole('link', { name: zh.translation['User Agreement'] })
     ).toHaveAttribute('href', '/user-agreement')
     expect(
       screen.queryByRole('link', { name: 'GitHub' })
     ).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
-    const button = screen.getByRole('link', { name: 'Console' })
+    const button = screen.getByRole('link', { name: zh.translation.Console })
     expect(button).toHaveAttribute(
       'href',
       authenticated ? '/dashboard' : '/sign-in'

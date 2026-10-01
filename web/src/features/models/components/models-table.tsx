@@ -22,6 +22,7 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DataTablePage, useDataTable } from '@/components/data-table'
+import { useModelPricing } from '@/features/model-pricing/api'
 import { useMediaQuery } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { isVisibleVendor } from '@/lib/service-visibility'
@@ -33,6 +34,7 @@ import {
   getSyncStatusOptions,
 } from '../constants'
 import { modelsQueryKeys, vendorsQueryKeys } from '../lib'
+import type { ModelSquareState } from '../types'
 import { DataTableBulkActions } from './data-table-bulk-actions'
 import { useModelsColumns } from './models-columns'
 import { useModels } from './models-provider'
@@ -63,6 +65,7 @@ export function ModelsTable() {
     globalFilter: { enabled: true, key: 'filter' },
     columnFilters: [
       { columnId: 'status', searchKey: 'status', type: 'array' },
+      { columnId: 'square_state', searchKey: 'square_state', type: 'array' },
       { columnId: 'vendor_id', searchKey: 'vendor', type: 'array' },
       { columnId: 'sync_official', searchKey: 'sync', type: 'array' },
     ],
@@ -71,6 +74,11 @@ export function ModelsTable() {
   // Extract filters from column filters
   const statusFilter =
     (columnFilters.find((f) => f.id === 'status')?.value as string[]) || []
+  const squareState = (
+    columnFilters.find((f) => f.id === 'square_state')?.value as
+      | ModelSquareState[]
+      | undefined
+  )?.[0]
   const vendorFilter =
     (columnFilters.find((f) => f.id === 'vendor_id')?.value as string[]) || []
   const syncFilter =
@@ -123,6 +131,8 @@ export function ModelsTable() {
         keyword: globalFilter,
         vendor: activeVendorFilter,
         status: statusFilterValue,
+        square_state: squareState,
+        include_channel_models: true,
         sync_official: syncFilterValue,
       }),
       'visible-services',
@@ -134,6 +144,8 @@ export function ModelsTable() {
           keyword: globalFilter,
           vendor: activeVendorFilter,
           status: statusFilterValue,
+          square_state: squareState,
+          include_channel_models: true,
           sync_official: syncFilterValue,
         },
         vendors
@@ -151,11 +163,22 @@ export function ModelsTable() {
   }, [models])
 
   // Columns configuration
-  const columns = useModelsColumns(vendors)
+  const pricingQuery = useModelPricing(
+    models
+      .filter((item) => item.name_rule === 0)
+      .map((item) => item.model_name),
+    models.length > 0
+  )
+  let pricingState: 'loading' | 'error' | undefined
+  if (pricingQuery.isError) pricingState = 'error'
+  else if (pricingQuery.isLoading) pricingState = 'loading'
+  const columns = useModelsColumns(vendors, pricingQuery.data, pricingState)
 
   // React Table instance
   const { table } = useDataTable({
     data: models,
+    getRowId: (model) =>
+      model.id > 0 ? `metadata:${model.id}` : `channel:${model.model_name}`,
     columns,
     totalCount,
     initialColumnVisibility: {
@@ -194,9 +217,15 @@ export function ModelsTable() {
       isLoading={isLoading}
       isFetching={isFetching}
       emptyTitle={t('No Models Found')}
-      emptyDescription={t(
-        'No models available. Create your first model to get started.'
-      )}
+      emptyDescription={
+        globalFilter ||
+        squareState ||
+        activeVendorFilter ||
+        statusFilterValue ||
+        syncFilterValue
+          ? t('Try adjusting your search')
+          : t('No models available. Create your first model to get started.')
+      }
       skeletonKeyPrefix='model-skeleton'
       applyHeaderSize
       toolbarProps={{
@@ -207,6 +236,17 @@ export function ModelsTable() {
             columnId: 'status',
             title: t('Status'),
             options: [...getModelStatusOptions(t)],
+            singleSelect: true,
+          },
+          {
+            columnId: 'square_state',
+            title: t('Model square visibility'),
+            options: [
+              { label: t('Displayed'), value: 'visible' },
+              { label: t('Unavailable'), value: 'unavailable' },
+              { label: t('Listing hidden'), value: 'hidden' },
+              { label: t('Partly shown'), value: 'partial' },
+            ],
             singleSelect: true,
           },
           {

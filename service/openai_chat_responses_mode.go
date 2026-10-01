@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"sync"
 
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/setting/model_setting"
 )
 
@@ -45,6 +46,10 @@ func ShouldChatCompletionsUseResponsesPolicy(policy model_setting.ChatCompletion
 }
 
 func ShouldChatCompletionsUseResponsesGlobal(channelID int, channelType int, model string) bool {
+	// Codex only accepts Responses; Chat clients (including playground) need conversion.
+	if channelType == constant.ChannelTypeCodex {
+		return true
+	}
 	return ShouldChatCompletionsUseResponsesPolicy(
 		model_setting.GetGlobalSettings().ChatCompletionsToResponsesPolicy,
 		channelID,

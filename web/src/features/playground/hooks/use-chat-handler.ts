@@ -18,9 +18,10 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
-import { sendChatCompletion } from '../api'
+import { handleServerError } from '@/lib/handle-server-error'
+
+import { sendChatCompletion, isImageGenerationModel } from '../api'
 import { ERROR_MESSAGES } from '../constants'
 import {
   applyStreamingChunk,
@@ -225,7 +226,7 @@ export function useChatHandler({
       flushStreamUpdates(generation)
       setIsRequesting(false)
       const displayError = getDisplayError(error)
-      toast.error(displayError)
+      handleServerError(new Error(displayError))
       const errorTitle = t(ERROR_MESSAGES.API_REQUEST_ERROR)
       onMessageUpdate((prev) => {
         if (generation !== requestGenerationRef.current) return prev
@@ -348,13 +349,13 @@ export function useChatHandler({
   // Send chat request (stream or non-stream based on config)
   const sendChat = useCallback(
     (messages: Message[]) => {
-      if (config.stream) {
+      if (config.stream && !isImageGenerationModel(config.model)) {
         sendStreamingChat(messages)
       } else {
         sendNonStreamingChat(messages)
       }
     },
-    [config.stream, sendStreamingChat, sendNonStreamingChat]
+    [config.stream, config.model, sendStreamingChat, sendNonStreamingChat]
   )
 
   // Stop generation

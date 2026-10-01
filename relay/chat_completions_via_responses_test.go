@@ -1,6 +1,8 @@
 package relay
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -9,16 +11,72 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
+	codexchannel "github.com/QuantumNous/new-api/relay/channel/codex"
 	openaichannel "github.com/QuantumNous/new-api/relay/channel/openai"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/new-api/relaykit/relayconvert"
 	relaytypes "github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/new-api/service"
 	hosttypes "github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestPrepareResponsesRequestRetainsConvertedAdaptor(t *testing.T) {
+	type capturedRequest struct {
+		path string
+		body []byte
+	}
+	captured := make(chan capturedRequest, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		captured <- capturedRequest{path: r.URL.Path, body: body}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"chatcmpl_1","object":"chat.completion","model":"gpt-4o","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":2,"total_tokens":5}}`))
+	}))
+	defer server.Close()
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	c.Request.Header.Set("Content-Type", "application/json")
+	common.SetContextKey(c, constant.ContextKeyOriginalModel, "gpt-4o")
+	common.SetContextKey(c, constant.ContextKeyChannelType, constant.ChannelTypeAdvancedCustom)
+	common.SetContextKey(c, constant.ContextKeyChannelBaseUrl, server.URL)
+	common.SetContextKey(c, constant.ContextKeyChannelKey, "test-key")
+	common.SetContextKey(c, constant.ContextKeyChannelOtherSetting, dto.ChannelOtherSettings{
+		AdvancedCustom: &dto.AdvancedCustomConfig{Routes: []dto.AdvancedCustomRoute{{
+			IncomingPath: "/v1/responses", UpstreamPath: "/v1/chat/completions", Converter: relayconvert.ConverterOpenAIResponsesToOpenAIChat,
+		}}},
+	})
+	request := &dto.OpenAIResponsesRequest{Model: "gpt-4o", Input: []byte(`"hello"`)}
+	info := relaycommon.GenRelayInfoResponses(c, request)
+	adaptor, body, closer, apiErr := PrepareResponsesRequest(c, info, request)
+	require.Nil(t, apiErr)
+	defer closer.Close()
+	response, err := adaptor.DoRequest(c, info, body)
+	require.NoError(t, err)
+	httpResponse, ok := response.(*http.Response)
+	require.True(t, ok)
+	usage, apiErr := adaptor.DoResponse(c, httpResponse, info)
+	require.Nil(t, apiErr)
+	require.IsType(t, &dto.Usage{}, usage)
+	assert.Equal(t, 5, usage.(*dto.Usage).TotalTokens)
+
+	upstream := <-captured
+	assert.Equal(t, "/v1/chat/completions", upstream.path)
+	var upstreamRequest dto.GeneralOpenAIRequest
+	require.NoError(t, common.Unmarshal(upstream.body, &upstreamRequest))
+	require.Len(t, upstreamRequest.Messages, 1)
+	assert.Equal(t, "hello", upstreamRequest.Messages[0].StringContent())
+	assert.Equal(t, []relaytypes.RelayFormat{relaytypes.RelayFormatOpenAIResponses, relaytypes.RelayFormatOpenAI}, info.RequestConversionChain)
+}
 
 func TestIsResponsesEventStreamContentType(t *testing.T) {
 	tests := []struct {
@@ -152,4 +210,127 @@ func TestTextRequestViaResponsesConvertsClaudeDirectly(t *testing.T) {
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
 	require.Len(t, response.Content, 1)
 	assert.Equal(t, "ok", response.Content[0].GetText())
+}
+
+func TestApplySystemPromptIfNeededSkipsToolLoadingMessages(t *testing.T) {
+	tools := json.RawMessage(`[{"type":"function","function":{"name":"get_current_time","parameters":{"type":"object","properties":{"city":{"type":"string"}}}}}]`)
+	toolLoading := dto.Message{Role: "system", Tools: tools}
+	user := dto.Message{Role: "user", Content: "What time is it in Beijing?"}
+
+	tests := []struct {
+		name         string
+		messages     []dto.Message
+		wantMessages []dto.Message
+		wantOverride bool
+	}{
+		{
+			name:     "tool loading message alone is not a system prompt",
+			messages: []dto.Message{toolLoading, user},
+			wantMessages: []dto.Message{
+				{Role: "system", Content: "Answer in English."},
+				toolLoading,
+				user,
+			},
+		},
+		{
+			name:     "override targets the real system prompt only",
+			messages: []dto.Message{toolLoading, {Role: "system", Content: "You are Kimi."}, user},
+			wantMessages: []dto.Message{
+				toolLoading,
+				{Role: "system", Content: "Answer in English.\nYou are Kimi."},
+				user,
+			},
+			wantOverride: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+			info := &relaycommon.RelayInfo{
+				ChannelMeta: &relaycommon.ChannelMeta{
+					ChannelSetting: dto.ChannelSettings{
+						SystemPrompt:         "Answer in English.",
+						SystemPromptOverride: true,
+					},
+				},
+			}
+			request := &dto.GeneralOpenAIRequest{
+				Model:    "kimi-k3",
+				Messages: append([]dto.Message(nil), tt.messages...),
+			}
+
+			applySystemPromptIfNeeded(c, info, request)
+
+			require.Len(t, request.Messages, len(tt.wantMessages))
+			for i, want := range tt.wantMessages {
+				got := request.Messages[i]
+				assert.Equal(t, want.Role, got.Role, "message %d role", i)
+				assert.Equal(t, want.Content, got.Content, "message %d content", i)
+				if len(want.Tools) > 0 {
+					assert.JSONEq(t, string(want.Tools), string(got.Tools), "message %d tools", i)
+				} else {
+					assert.Empty(t, got.Tools, "message %d tools", i)
+				}
+			}
+			_, overrideSet := common.GetContextKey(c, constant.ContextKeySystemPromptOverride)
+			assert.Equal(t, tt.wantOverride, overrideSet)
+		})
+	}
+}
+
+func TestCodexChatUsesResponsesWithStreamingUpstream(t *testing.T) {
+	oldTimeout := constant.StreamingTimeout
+	constant.StreamingTimeout = 30
+	t.Cleanup(func() { constant.StreamingTimeout = oldTimeout })
+	for _, stream := range []bool{false, true} {
+		t.Run(fmt.Sprint(stream), func(t *testing.T) {
+			require.True(t, service.ShouldChatCompletionsUseResponsesGlobal(12, constant.ChannelTypeCodex, "codex/gpt-6-sol"))
+			captured := make(chan []byte, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					http.Error(w, err.Error(), 400)
+					return
+				}
+				captured <- body
+				assert.Equal(t, "/backend-api/codex/responses", r.URL.Path)
+				// Codex can send SSE with a non-SSE media type.
+				w.Header().Set("Content-Type", "text/plain")
+				fmt.Fprint(w, "data: {\"type\":\"response.output_text.delta\",\"delta\":\"ok\",\"output_index\":0,\"content_index\":0}\n\n")
+				fmt.Fprint(w, "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_test\",\"model\":\"gpt-6-sol\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}\n\n")
+			}))
+			defer server.Close()
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodPost, "/pg/chat/completions", nil)
+			info := &relaycommon.RelayInfo{
+				RelayMode: relayconstant.RelayModeChatCompletions, RelayFormat: relaytypes.RelayFormatOpenAI, IsStream: stream,
+				OriginModelName: "codex/gpt-6-sol",
+				ChannelMeta:     &relaycommon.ChannelMeta{ChannelType: constant.ChannelTypeCodex, ChannelBaseUrl: server.URL, ApiKey: `{"access_token":"test","account_id":"test"}`, UpstreamModelName: "gpt-6-sol"},
+			}
+			topP := 1.0
+			request := &dto.GeneralOpenAIRequest{Model: "gpt-6-sol", TopP: &topP, Stream: &stream, Messages: []dto.Message{{Role: "user", Content: "hello"}}}
+			usage, apiErr := textRequestViaResponses(c, info, &codexchannel.Adaptor{}, request)
+			require.Nil(t, apiErr)
+			require.NotNil(t, usage)
+			assert.Equal(t, 5, usage.TotalTokens)
+			var body map[string]any
+			require.NoError(t, common.Unmarshal(<-captured, &body))
+			assert.Equal(t, true, body["stream"])
+			assert.Equal(t, false, body["store"])
+			assert.NotContains(t, body, "top_p")
+			assert.Contains(t, body, "instructions")
+			assert.Contains(t, recorder.Body.String(), "ok")
+			if stream {
+				assert.Contains(t, recorder.Body.String(), "[DONE]")
+			} else {
+				var response map[string]any
+				require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+				assert.Equal(t, "chat.completion", response["object"])
+			}
+		})
+	}
 }

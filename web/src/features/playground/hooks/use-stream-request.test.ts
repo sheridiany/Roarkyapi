@@ -16,8 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 
+import { parseRequestErrorDetails } from '../lib/streaming/request-error-utils'
 import type { ChatCompletionRequest } from '../types'
 import { createStreamRequestController } from './use-stream-request'
 
@@ -195,5 +196,83 @@ describe('latest-wins stream request coordination', () => {
     )
 
     expect(updates).toEqual(['current'])
+  })
+})
+
+describe('stream failures', () => {
+  test.each(['message', 'error', 'readystatechange'])(
+    'reports %s failure once and leaves streaming state',
+    async (event) => {
+      const source = new FakeStreamSource()
+      const onError = vi.fn()
+      const onComplete = vi.fn()
+      const setStreaming = vi.fn()
+      const controller = createStreamRequestController({
+        getHeaders: async () => ({}),
+        createSource: () => source,
+        setStreaming,
+      })
+      await controller.send(payload, { ...noopCallbacks, onError, onComplete })
+      source.readyState = 2
+      source.emit(
+        event,
+        JSON.stringify({
+          error: {
+            code: 'upstream_error',
+            message: 'Upstream unavailable (request id: test)',
+          },
+        })
+      )
+      source.emit('message', '[DONE]')
+      expect(onError).toHaveBeenCalledTimes(1)
+      if (event !== 'readystatechange') {
+        expect(onError).toHaveBeenCalledWith(
+          'Upstream unavailable (request id: test)',
+          'upstream_error'
+        )
+      }
+      expect(onComplete).not.toHaveBeenCalled()
+      expect(setStreaming).toHaveBeenLastCalledWith(false)
+      expect(source.closed).toBe(true)
+    }
+  )
+  test.each(['done', 'stop'])(
+    '%s followed by connection close is not an error',
+    async (action) => {
+      const source = new FakeStreamSource()
+      const onError = vi.fn()
+      const onComplete = vi.fn()
+      const controller = createStreamRequestController({
+        getHeaders: async () => ({}),
+        createSource: () => source,
+        setStreaming: () => undefined,
+      })
+      await controller.send(payload, { ...noopCallbacks, onError, onComplete })
+      if (action === 'done') source.emit('message', '[DONE]')
+      else controller.stop()
+      source.readyState = 2
+      source.emit('readystatechange')
+      expect(onError).not.toHaveBeenCalled()
+      expect(onComplete).toHaveBeenCalledTimes(action === 'done' ? 1 : 0)
+    }
+  )
+})
+
+test('non-streaming failures preserve the upstream message and request identifier', () => {
+  expect(
+    parseRequestErrorDetails({
+      message: 'Request failed with status code 502',
+      response: {
+        data: {
+          error: {
+            code: 'upstream_error',
+            message: 'Upstream unavailable (request id: req-123)',
+          },
+        },
+      },
+    })
+  ).toEqual({
+    errorCode: 'upstream_error',
+    errorMessage: 'Upstream unavailable (request id: req-123)',
   })
 })

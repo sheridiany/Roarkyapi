@@ -120,3 +120,7 @@ export const Send = createNavigationIcon(SentIcon)
 export const Stop = createNavigationIcon(StopIcon)
 export const Check = createNavigationIcon(Tick02Icon)
 export const Layers = createNavigationIcon(Layers01Icon)
+
+export const ShieldCheck = createNavigationIcon(Shield01Icon)
+export const ClipboardList = createNavigationIcon(Task01Icon)
+export const Route = createNavigationIcon(Radio01Icon)

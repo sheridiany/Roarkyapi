@@ -1,3 +1,5 @@
+import { MESSAGE_STATUS, STORAGE_KEYS } from '../../constants'
+import type { PlaygroundConfig, ParameterEnabled, Message } from '../../types'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -16,8 +18,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { MESSAGE_STATUS, STORAGE_KEYS } from '../../constants'
-import type { PlaygroundConfig, ParameterEnabled, Message } from '../../types'
+import {
+  getGeneratedImage,
+  GENERATED_IMAGE_PLACEHOLDER,
+} from '../message/generated-image'
 import {
   finalizeMessage,
   isAssistantMessagePending,
@@ -196,7 +200,9 @@ function normalizeStoredMessageForLoad(message: Message): Message {
   let changed = false
   const versions = message.versions.map((version) => {
     const collapsedContent = collapseRepeatedSectionSnapshots(version.content)
-    const content = truncateText(collapsedContent, MAX_LOADED_MESSAGE_CHARS)
+    const content = getGeneratedImage(collapsedContent)
+      ? GENERATED_IMAGE_PLACEHOLDER
+      : truncateText(collapsedContent, MAX_LOADED_MESSAGE_CHARS)
 
     if (content === version.content && collapsedContent === version.content) {
       return version
@@ -374,7 +380,15 @@ export function loadMessages(): Message[] | null {
  */
 export function saveMessages(messages: Message[]): void {
   try {
-    const trimmed = trimMessages(messages)
+    const trimmed = trimMessages(messages).map((message) => ({
+      ...message,
+      versions: message.versions.map((version) => ({
+        ...version,
+        content: getGeneratedImage(version.content)
+          ? GENERATED_IMAGE_PLACEHOLDER
+          : version.content,
+      })),
+    }))
     const parsed = messagesSchema.parse(trimmed) as Message[]
     writeStoredValue(STORAGE_KEYS.MESSAGES, parsed)
   } catch (error) {
