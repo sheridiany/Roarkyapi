@@ -7,7 +7,7 @@ import (
 
 // GetEndpointTypesByChannelType 获取渠道最优先端点类型（所有的渠道都支持 OpenAI 端点）
 func GetEndpointTypesByChannelType(channelType int, modelName string) []constant.EndpointType {
-	if modelName == "gpt-image-2" || strings.HasPrefix(modelName, "gpt-image-2-") || strings.HasPrefix(modelName, "gpt-image-2.5-") {
+	if (strings.HasPrefix(modelName, "grok-imagine") && IsImageGenerationModel(modelName)) || modelName == "gpt-image-2" || strings.HasPrefix(modelName, "gpt-image-2-") || strings.HasPrefix(modelName, "gpt-image-2.5-") {
 		return []constant.EndpointType{constant.EndpointTypeImageGeneration}
 	}
 	var endpointTypes []constant.EndpointType

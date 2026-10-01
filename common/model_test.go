@@ -36,3 +36,11 @@ func TestWanEndpointsDistinguishImagesFromVideos(t *testing.T) {
 		})
 	}
 }
+
+func TestGrokImageCatalogDoesNotAdvertiseChatOrVideo(t *testing.T) {
+	for _, m := range []string{"grok-imagine", "grok-imagine-image", "grok-imagine-image-2.0", "grok-imagine-image-quality"} {
+		assert.Equal(t, []constant.EndpointType{constant.EndpointTypeImageGeneration}, GetEndpointTypesByChannelType(constant.ChannelTypeXai, m))
+	}
+	assert.False(t, IsImageGenerationModel("grok-imagine-video"))
+	assert.False(t, IsImageGenerationModel("grok-4.7"))
+}

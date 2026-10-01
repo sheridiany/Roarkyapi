@@ -142,10 +142,8 @@ describe('Homepage model catalog', () => {
     expect(
       await screen.findByText('≈ 1.37 tenths of official price')
     ).toBeVisible()
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Group' }),
-      'ClaudeKiro'
-    )
+    await user.click(screen.getByRole('combobox', { name: 'Group' }))
+    await user.click(screen.getByRole('option', { name: /ClaudeKiro/ }))
     expect(screen.getByText('≈ 0.68 tenths of official price')).toBeVisible()
     const row = screen.getByRole('row', { name: /gpt-6-sol/ })
     expect(within(row).getByText('¥1.00')).toBeVisible()
@@ -164,10 +162,13 @@ describe('Homepage model catalog', () => {
       within(table).getByRole('row', { name: /gpt-standard/ })
     ).toHaveTextContent('¥2.00')
     const select = screen.getByRole('combobox', { name: 'Group' })
-    expect(select).toHaveValue('Codex')
-    expect(within(select).getAllByRole('option')).toHaveLength(2)
+    expect(select).toHaveTextContent('Codex')
+    await user.click(select)
+    expect(select).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getAllByRole('option')).toHaveLength(2)
     expect(select).not.toHaveTextContent('VIP')
-    await user.selectOptions(select, 'ClaudeKiro')
+    await user.click(screen.getByRole('option', { name: /ClaudeKiro/ }))
+    expect(select).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByRole('row', { name: /gpt-standard/ })).toHaveTextContent(
       '¥1.00'
     )
@@ -180,7 +181,7 @@ describe('Homepage model catalog', () => {
     expect(
       screen.queryByRole('row', { name: /gpt-standard/ })
     ).not.toBeInTheDocument()
-    expect(select).toHaveValue('ClaudeKiro')
+    expect(select).toHaveTextContent('ClaudeKiro')
   })
 
   it('keeps long-context prices collapsed and expands every correctly adjusted tier on request', async () => {

@@ -21,7 +21,13 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
 import { useStatus } from '@/hooks/use-status'
 import { getLobeIcon } from '@/lib/lobe-icon'
@@ -134,19 +140,35 @@ export function GatewayModels(props: { showCatalogLink?: boolean }) {
         </div>
         <div className='gateway-group'>
           <label htmlFor='pricing-group'>{t('Group')}</label>
-          <NativeSelect
-            id='pricing-group'
+          <Select
             value={group}
-            onChange={(event) => setSelectedGroup(event.target.value)}
+            onValueChange={(value) => {
+              if (value !== null) setSelectedGroup(value)
+            }}
             disabled={!availableGroups.length}
           >
-            {availableGroups.map((name) => (
-              <NativeSelectOption key={name} value={name}>
-                {name} · ×
-                {data.groupRatio[name] ?? data.usableGroup[name]?.ratio ?? 1}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+            <SelectTrigger id='pricing-group' className='gateway-group-trigger'>
+              <SelectValue>
+                {group} · ×{ratio}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent
+              align='start'
+              alignItemWithTrigger={false}
+              className='gateway-group-menu'
+            >
+              {availableGroups.map((name) => (
+                <SelectItem
+                  key={name}
+                  value={name}
+                  className='gateway-group-option'
+                >
+                  {name} · ×
+                  {data.groupRatio[name] ?? data.usableGroup[name]?.ratio ?? 1}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {comparison && (
             <span className='gateway-ratio-badge'>
               {t('≈ {{discount}} tenths of official price', { discount })}

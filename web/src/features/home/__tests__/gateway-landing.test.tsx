@@ -94,7 +94,7 @@ it.each([false, true])(
       ['OpenAI', 9],
       ['Anthropic', 6],
       ['Gemini', 8],
-      ['xAI', 3],
+      ['xAI', 7],
     ] as const) {
       const card = screen.getByRole('article', { name })
       expect(card).toBeVisible()

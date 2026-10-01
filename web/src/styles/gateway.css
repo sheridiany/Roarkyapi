@@ -395,7 +395,7 @@
   font-size: 12px;
   color: var(--muted-foreground);
 }
-.gateway-group select {
+.gateway-group .gateway-group-trigger {
   background: var(--background);
   color: var(--foreground);
   padding: 8px 12px;
@@ -405,6 +405,28 @@
   min-height: 42px;
   min-width: 180px;
   max-width: min(320px, 75vw);
+}
+.gateway-group-menu {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  padding: 5px;
+  max-width: calc(100vw - 24px);
+}
+.gateway-group-option {
+  min-height: 42px;
+  padding: 10px 32px 10px 12px;
+  font-size: 14px;
+}
+.gateway-group-option[data-selected],
+.gateway-group-option[data-highlighted] {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.gateway-group-option [data-slot='select-item-text'] {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .gateway-price-note {
   font-size: 12px;

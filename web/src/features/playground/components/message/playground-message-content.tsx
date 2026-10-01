@@ -23,6 +23,7 @@ import {
   CodeBlock,
   CodeBlockCopyButton,
 } from '@/components/ai-elements/code-block'
+import { Image as GeneratedImage } from '@/components/ai-elements/image'
 import { Loader } from '@/components/ai-elements/loader'
 import { MessageContent } from '@/components/ai-elements/message'
 import {
@@ -38,6 +39,7 @@ import {
   SourcesContent,
   SourcesTrigger,
 } from '@/components/ai-elements/sources'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 import { MESSAGE_STATUS } from '../../constants'
@@ -47,6 +49,10 @@ import {
   isErrorMessage,
   type MessageAlignment,
 } from '../../lib'
+import {
+  getGeneratedImage,
+  GENERATED_IMAGE_PLACEHOLDER,
+} from '../../lib/message/generated-image'
 import { getMessageContentStyles } from '../../lib/message/message-styles'
 import type { Message } from '../../types'
 import { MessageError } from './message-error'
@@ -79,6 +85,7 @@ export function PlaygroundMessageContent({
     showMessageContent,
     sources,
   } = getMessageContentState(message, versionContent)
+  const generatedImage = getGeneratedImage(displayContent)
   const isError = isErrorMessage(message)
   const isMessageFinal =
     message.status !== MESSAGE_STATUS.LOADING &&
@@ -155,7 +162,42 @@ export function PlaygroundMessageContent({
               variant='flat'
               className={cn(getMessageContentStyles())}
             >
-              <Response final={isMessageFinal}>{displayContent}</Response>
+              {generatedImage ? (
+                <div className='flex min-w-0 flex-col items-start gap-3'>
+                  <GeneratedImage
+                    base64={generatedImage.base64}
+                    mediaType={generatedImage.mediaType}
+                    uint8Array={new Uint8Array()}
+                    alt={t('Generated image')}
+                    className='max-h-[60vh] object-contain'
+                  />
+                  <Button
+                    nativeButton={false}
+                    variant='outline'
+                    render={
+                      <a
+                        href={`data:${generatedImage.mediaType};base64,${generatedImage.base64}`}
+                        download={`image.${generatedImage.mediaType.split('/')[1]}`}
+                      />
+                    }
+                  >
+                    {t('Download')}
+                  </Button>
+                  <p className='text-muted-foreground text-xs'>
+                    {t(
+                      'Images are not saved in chat history. Download them to keep them.'
+                    )}
+                  </p>
+                </div>
+              ) : (
+                <Response final={isMessageFinal}>
+                  {displayContent === GENERATED_IMAGE_PLACEHOLDER
+                    ? t(
+                        'Images are not saved in chat history. Download them to keep them.'
+                      )
+                    : displayContent}
+                </Response>
+              )}
             </MessageContent>
           )}
           <MessageMetadata alignment={alignment} message={message} />

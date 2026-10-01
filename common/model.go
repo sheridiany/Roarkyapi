@@ -54,6 +54,9 @@ func IsGeminiImageModel(modelName string) bool {
 
 func IsImageGenerationModel(modelName string) bool {
 	modelName = strings.ToLower(modelName)
+	if modelName == "grok-imagine" || strings.HasPrefix(modelName, "grok-imagine-image") {
+		return true
+	}
 	if IsGeminiImageModel(modelName) {
 		return true
 	}

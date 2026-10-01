@@ -86,7 +86,15 @@ const providers = [
   },
   {
     name: 'xAI',
-    models: ['Grok 4.7', 'Grok 4.6', 'Grok 4.5'],
+    models: [
+      'Grok 4.7',
+      'Grok 4.6',
+      'Grok 4.5',
+      'Grok Imagine',
+      'Grok Imagine Image',
+      'Grok Imagine Image 2.0',
+      'Grok Imagine Image Quality',
+    ],
     family: 'Grok',
     icon: XAI,
     tone: 'xai',

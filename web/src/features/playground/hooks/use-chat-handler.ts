@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next'
 
 import { handleServerError } from '@/lib/handle-server-error'
 
-import { sendChatCompletion } from '../api'
+import { sendChatCompletion, isImageGenerationModel } from '../api'
 import { ERROR_MESSAGES } from '../constants'
 import {
   applyStreamingChunk,
@@ -349,13 +349,13 @@ export function useChatHandler({
   // Send chat request (stream or non-stream based on config)
   const sendChat = useCallback(
     (messages: Message[]) => {
-      if (config.stream) {
+      if (config.stream && !isImageGenerationModel(config.model)) {
         sendStreamingChat(messages)
       } else {
         sendNonStreamingChat(messages)
       }
     },
-    [config.stream, sendStreamingChat, sendNonStreamingChat]
+    [config.stream, config.model, sendStreamingChat, sendNonStreamingChat]
   )
 
   // Stop generation

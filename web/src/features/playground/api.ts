@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { t } from 'i18next'
+
 import { api } from '@/lib/api'
 import { requireServerSuccess } from '@/lib/server-error-message'
 
@@ -27,6 +29,15 @@ import type {
   GroupOption,
 } from './types'
 
+export function isImageGenerationModel(model: string): boolean {
+  return (
+    model.startsWith('gpt-image-') ||
+    /^gemini-.*-image(?:-|$)/.test(model) ||
+    model === 'grok-imagine' ||
+    /^grok-imagine-image(?:-|$)/.test(model)
+  )
+}
+
 /**
  * Send chat completion request (non-streaming)
  */
@@ -34,6 +45,60 @@ export async function sendChatCompletion(
   payload: ChatCompletionRequest,
   signal?: AbortSignal
 ): Promise<ChatCompletionResponse> {
+  if (isImageGenerationModel(payload.model)) {
+    const content = [...payload.messages]
+      .reverse()
+      .find((message) => message.role === 'user')?.content
+    if (typeof content !== 'string') {
+      throw new Error(t('{{modality}} not supported', { modality: t('Image') }))
+    }
+    const response = await api.post(
+      '/pg/images/generations',
+      {
+        model: payload.model,
+        group: payload.group,
+        prompt: content,
+        n: 1,
+        response_format: 'b64_json',
+      },
+      { signal, timeout: 180000, skipErrorHandler: true } as Record<
+        string,
+        unknown
+      >
+    )
+    const images: { b64_json?: string }[] = response.data?.data ?? []
+    if (
+      !images.length ||
+      images.some(
+        (image) => !image.b64_json || !/^[A-Za-z0-9+/=]+$/.test(image.b64_json)
+      )
+    ) {
+      throw new Error(t('Image not available'))
+    }
+    return {
+      id: `image-${Date.now()}`,
+      object: 'chat.completion',
+      created: Date.now() / 1000,
+      model: payload.model,
+      choices: [
+        {
+          index: 0,
+          finish_reason: 'stop',
+          message: {
+            role: 'assistant',
+            content: images
+              .map((image) => {
+                const mime = image.b64_json?.startsWith('/9j/')
+                  ? 'image/jpeg'
+                  : 'image/png'
+                return `![${t('Generated image')}](data:${mime};base64,${image.b64_json})`
+              })
+              .join('\n\n'),
+          },
+        },
+      ],
+    }
+  }
   const res = await api.post(API_ENDPOINTS.CHAT_COMPLETIONS, payload, {
     signal,
     skipErrorHandler: true,

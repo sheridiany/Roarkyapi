@@ -58,6 +58,37 @@ TEST_MYSQL_DSN='root@tcp(127.0.0.1:23306)/roark_fresh?charset=utf8mb4&parseTime=
 
 迁移程序分别在 rc.41、更新前个人版本和合并版本构建。`CHECK_SEED=1` 创建代表性数据；`CHECK_VERIFY=1` 在更新后验证数据；`CHECK_UNIQUENESS=1` 检查令牌哈希约束。程序和实际执行日志一起留存供复核。
 
+## 整体检查后的修复与补验
+
+- Codex 图片响应原先只映射输入、输出总 token 数，结算读取的 `PromptTokensDetails` 和 `CompletionTokenDetails` 缺失。现将 Responses 输入明细克隆到前者，输出明细复制到后者，保留文本、图片、缓存及推理 token 明细。
+- 在现有 `relay/channel/codex/adaptor_test.go` 中新增两例回归，通过实际响应解析、`BuildTieredTokenParams` 和 `ComputeTieredQuota` 检查计算结果。固定测试费率下，带明细响应应结算 110 quota，修复前为 120；未提供明细时仍为 120。这些数值是测试夹具，不是线上模型报价。
+- 原迁移验收只比较更新后两次启动的索引，现补充升级前的全库快照。逐项比较旧表、索引名称/列/唯一性、主键，以及数据库目录中的约束；MySQL 同时记录外键引用与规则，PostgreSQL 记录约束定义，SQLite 记录外键。旧快照中的每一项必须存在于更新后快照；更新后仍检查重复启动和已有数据、令牌哈希唯一性。
+
+| 数据库及版本 | rc.41 主库条目（旧→新） | 个人版本主库条目（旧→新） | 日志库条目（旧→新） |
+| --- | --- | --- | --- |
+| SQLite 3.50.4 | 230→233 | 228→233 | 与主库共用文件，分别核对通过 |
+| MySQL 8.4.11 | 341→347 | 339→347 | 两条路径均 30→30 |
+| PostgreSQL 16.15 | 257→261 | 255→261 | 两条路径均 27→27 |
+
+三种数据库的全新建库、rc.41 升级及更新前个人版本升级共九个场景通过。日志库独立配置沿用前述边界。使用任务专属临时容器 `roark-fix-mysql-20261001`、`roark-fix-pg-20261001`，数据库为 `roark_fix_{fresh,rc41,personal}` 及对应 `_log`；未连接生产数据库。
+
+本次执行命令（旧版本构建在各自临时 worktree 内执行）：
+
+```sh
+CGO_ENABLED=0 go test ./relay/channel/codex ./service ./pkg/billingexpr
+CGO_ENABLED=0 go build -o /tmp/roarkapi-fixed-server .
+CGO_ENABLED=0 go build -o /tmp/roarkapi-fix-migration-current .git/roark-fix-20261001/migration-check.go
+git -C /tmp/roarkapi-fix-rc41 rev-parse HEAD
+# 2035a82ae (v1.0.0-rc.41)
+(cd /tmp/roarkapi-fix-rc41 && CGO_ENABLED=0 go build -o /tmp/roarkapi-fix-migration-rc41 /Users/xuean/Repos/00-Roark/Roarkapi/.git/roark-fix-20261001/migration-check.go)
+git -C /tmp/roarkapi-fix-personal rev-parse HEAD
+# 1f79af7c6 (更新前个人版本)
+(cd /tmp/roarkapi-fix-personal && CGO_ENABLED=0 go build -o /tmp/roarkapi-fix-migration-personal /Users/xuean/Repos/00-Roark/Roarkapi/.git/roark-fix-20261001/migration-check.go)
+python3 .git/roark-fix-20261001/run-matrix.py
+```
+
+夹具程序、九个场景的执行日志及升级前快照留存在 `.git/roark-fix-20261001/`；其他原有跟踪文件的补丁和未跟踪文件逐字节核对未变。未调用付费上游，未推送或部署。
+
 ## 本地应用验收与边界
 
 - 使用 ego-browser 独立任务空间，本地初始化账号并通过实际登录表单登录。
