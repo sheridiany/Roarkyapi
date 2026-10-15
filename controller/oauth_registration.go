@@ -66,7 +66,7 @@ func CompleteInvitedOAuthRegistration(c *gin.Context) {
 		InvitationCode string `json:"invitation_code"`
 	}
 	if err := common.DecodeJson(c.Request.Body, &request); err != nil {
-		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		common.ApiErrorT(c, "Invalid parameters")
 		return
 	}
 	invitationID, err := model.GetRegistrationInvitationID(request.InvitationCode)
@@ -82,7 +82,7 @@ func CompleteInvitedOAuthRegistration(c *gin.Context) {
 		case errors.Is(err, model.ErrAuthFlowInvalid), errors.Is(err, model.ErrAuthFlowExpired), errors.Is(err, model.ErrAuthFlowConsumed):
 			c.JSON(http.StatusGone, gin.H{"success": false, "code": "OAUTH_REGISTRATION_EXPIRED", "message": i18n.T(c, "oauth.registration_expired")})
 		case errors.Is(err, model.ErrEmailAlreadyTaken):
-			common.ApiErrorI18n(c, i18n.MsgUserEmailAlreadyTaken)
+			common.ApiErrorT(c, "Email address is already in use")
 		default:
 			handleOAuthError(c, err)
 		}
@@ -107,7 +107,7 @@ func finishInvitedOAuthRegistration(token string, invitationID int) (*model.User
 	user, err := findOAuthUser(provider, &payload.User)
 	if err == nil {
 		if user.Status != common.UserStatusEnabled {
-			return nil, oauth.NewOAuthError(i18n.MsgOAuthUserBanned, nil)
+			return nil, oauth.NewOAuthError(common.NewMessage("User has been banned"))
 		}
 		// Another flow may have created this identity in the meantime. Authenticate
 		// it once, without consuming a second invitation.

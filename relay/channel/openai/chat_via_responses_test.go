@@ -92,7 +92,6 @@ func TestOaiResponsesToChatStreamHandlerConvertsSSEOrderAndUsage(t *testing.T) {
 
 func TestResponsesTerminalEventFinishesWithoutUpstreamEOF(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	service.InitTokenEncoders()
 	oldTimeout := constant.StreamingTimeout
 	constant.StreamingTimeout = 1
 	t.Cleanup(func() { constant.StreamingTimeout = oldTimeout })
@@ -378,7 +377,6 @@ func TestResponsesUpstreamErrorDoesNotReturnBillableUsage(t *testing.T) {
 	oldTimeout := constant.StreamingTimeout
 	constant.StreamingTimeout = 30
 	t.Cleanup(func() { constant.StreamingTimeout = oldTimeout })
-	service.InitTokenEncoders()
 	for _, format := range []string{"chat", "buffered", "responses"} {
 		for _, body := range []string{`data:{"type":"error","error":{"message":"upstream connection closed"}}`, `data:{"type":"error","message":"upstream connection closed","code":"server_error"}`} {
 			t.Run(format+body, func(t *testing.T) {

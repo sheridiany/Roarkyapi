@@ -38,6 +38,8 @@ const calendarLocales = {
   zh: zhCN,
   'zh-CN': zhCN,
   'zh-TW': zhTW,
+  zhCN,
+  zhTW,
   fr,
   ru,
   ja,
@@ -77,26 +79,24 @@ export function DateTimePicker({
   const [open, setOpen] = React.useState(false)
   const [date, setDate] = React.useState<Date | undefined>(value)
   const [month, setMonth] = React.useState<Date | undefined>(value)
-  const [time, setTime] = React.useState<string>('00:00')
+  const [time, setTime] = React.useState<string>('00:00:00')
 
   React.useEffect(() => {
     setDate(value)
     setMonth(value)
     if (value) {
-      const hours = value.getHours().toString().padStart(2, '0')
-      const minutes = value.getMinutes().toString().padStart(2, '0')
-      setTime(`${hours}:${minutes}`)
+      setTime(dayjs(value).format('HH:mm:ss'))
     }
   }, [value])
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
-      const [hours, minutes] = time.split(':').map(Number)
+      const [hours, minutes, seconds = 0] = time.split(':').map(Number)
       const newDate = new Date(selectedDate)
-      newDate.setHours(hours, minutes, 0, 0)
+      newDate.setHours(hours, minutes, seconds, 0)
       if (minDate && newDate < minDate) newDate.setTime(minDate.getTime())
       if (maxDate && newDate > maxDate) newDate.setTime(maxDate.getTime())
-      setTime(dayjs(newDate).format('HH:mm'))
+      setTime(dayjs(newDate).format('HH:mm:ss'))
       setDate(newDate)
       setMonth(newDate)
       onChange?.(newDate)
@@ -110,16 +110,17 @@ export function DateTimePicker({
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = e.target.value
-    if (!/^\d{2}:\d{2}$/.test(newTime)) return
+    if (!/^\d{2}:\d{2}(:\d{2})?$/.test(newTime)) return
     setTime(newTime)
 
     if (date) {
-      const [hours, minutes] = newTime.split(':').map(Number)
+      // A browser may omit :00 seconds from the value.
+      const [hours, minutes, seconds = 0] = newTime.split(':').map(Number)
       const newDate = new Date(date)
-      newDate.setHours(hours, minutes, 0, 0)
+      newDate.setHours(hours, minutes, seconds, 0)
       if (minDate && newDate < minDate) newDate.setTime(minDate.getTime())
       if (maxDate && newDate > maxDate) newDate.setTime(maxDate.getTime())
-      setTime(dayjs(newDate).format('HH:mm'))
+      setTime(dayjs(newDate).format('HH:mm:ss'))
       setDate(newDate)
       onChange?.(newDate)
     }
@@ -128,13 +129,14 @@ export function DateTimePicker({
   const handleClear = () => {
     setDate(undefined)
     setMonth(undefined)
-    setTime('00:00')
+    setTime('00:00:00')
     onChange?.(undefined)
   }
 
   const timeInput = (
     <Input
       type='time'
+      step={1}
       aria-label={`${placeholderText} ${t('Time')}`}
       value={time}
       onChange={handleTimeChange}

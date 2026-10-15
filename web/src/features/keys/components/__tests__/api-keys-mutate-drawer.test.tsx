@@ -298,6 +298,7 @@ test.each(['default', 'auto'])(
       group,
       auto_groups: group === 'auto' ? ['retired-group'] : [],
       cross_group_retry: false,
+      allow_user_quota_query: false,
       model_limits_enabled: true,
       model_limits: 'gpt-5.1',
       allow_ips: '10.0.0.0/8',
@@ -318,6 +319,7 @@ test.each(['default', 'auto'])(
     expect(put.mock.calls[0]?.[1]).toMatchObject({
       id: 7,
       name: 'Renamed',
+      allow_user_quota_query: false,
       model_limits_enabled: true,
       model_limits: 'gpt-5.1',
       allow_ips: '10.0.0.0/8',

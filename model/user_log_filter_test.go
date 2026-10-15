@@ -69,7 +69,7 @@ func TestUserLogFundingFilter(t *testing.T) {
 	}{{"all", "", 5, 650}, {"wallet", "wallet", 3, 150}, {"subscription", "subscription", 2, 500}} {
 		t.Run(tc.name, func(t *testing.T) {
 			filter := UserLogFilter{APIOnly: true, BillingSource: tc.source}
-			rows, total, err := GetUserLogs(81701, 0, now-60, now+1, "", "", 0, 1, "", "", "", filter)
+			rows, total, err := GetUserLogs(81701, LogFilter{StartTimestamp: now - 60, EndTimestamp: now + 1, UserLogFilter: filter}, 0, 1)
 			require.NoError(t, err)
 			assert.Equal(t, tc.count, total)
 			require.Len(t, rows, 1)
@@ -80,7 +80,7 @@ func TestUserLogFundingFilter(t *testing.T) {
 			assert.Equal(t, tc.quota, stat.Quota)
 		})
 	}
-	rows, total, err := GetUserLogs(81701, 0, now-60, now+1, "model-a", "", 0, 20, "", "", "", UserLogFilter{APIOnly: true, BillingSource: "subscription"})
+	rows, total, err := GetUserLogs(81701, LogFilter{StartTimestamp: now - 60, EndTimestamp: now + 1, ModelName: "model-a", UserLogFilter: UserLogFilter{APIOnly: true, BillingSource: "subscription"}}, 0, 20)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), total)
 	require.Len(t, rows, 1)
@@ -88,6 +88,6 @@ func TestUserLogFundingFilter(t *testing.T) {
 	stat, err := SumUsedQuota(0, now-60, now+1, "model-a", "funding-reader", "", 0, "", UserLogFilter{APIOnly: true, BillingSource: "subscription"})
 	require.NoError(t, err)
 	assert.Equal(t, 200, stat.Quota)
-	_, _, err = GetUserLogs(81701, 0, 0, 0, "", "", 0, 20, "", "", "", UserLogFilter{BillingSource: "invalid"})
+	_, _, err = GetUserLogs(81701, LogFilter{UserLogFilter: UserLogFilter{BillingSource: "invalid"}}, 0, 20)
 	require.Error(t, err)
 }

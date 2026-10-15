@@ -445,6 +445,23 @@ export function ApiKeysMutateDrawer({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name='allow_user_quota_query'
+                render={({ field }) => (
+                  <FormItem className='flex items-center gap-2'>
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel className='text-muted-foreground font-normal'>
+                      {t('Allow querying user quota')}
+                    </FormLabel>
+                  </FormItem>
+                )}
+              />
               {!unlimitedQuota && (
                 <FormField
                   control={form.control}

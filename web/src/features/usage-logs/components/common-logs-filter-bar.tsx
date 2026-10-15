@@ -44,6 +44,7 @@ import { buildSearchParams } from '../lib/filter'
 import { getDefaultTimeRange } from '../lib/utils'
 import type { CommonLogFilters } from '../types'
 import { CompactDateTimeRangePicker } from './compact-date-time-range-picker'
+import { ExportLogsDialog } from './dialogs/export-logs-dialog'
 import {
   LogsFilterField,
   LogsFilterInput,
@@ -418,6 +419,7 @@ export function CommonLogsFilterBar<TData>(
       <LogsFilterToolbar
         table={props.table}
         actionStart={sensitiveToggle}
+        actionEnd={<ExportLogsDialog />}
         primaryFilters={
           <>
             {dateRangeFilter}

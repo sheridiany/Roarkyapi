@@ -22,9 +22,11 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DataTablePage, useDataTable } from '@/components/data-table'
+import { ErrorState } from '@/components/error-state'
 import { useModelPricing } from '@/features/model-pricing/api'
 import { useMediaQuery } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
+import { requireServerSuccess } from '@/lib/server-error-message'
 import { isVisibleVendor } from '@/lib/service-visibility'
 
 import { getVisibleModelCatalog, getVendors } from '../api'
@@ -88,7 +90,8 @@ export function ModelsTable() {
   // Fetch vendors for filter
   const { data: vendorsData } = useQuery({
     queryKey: vendorsQueryKeys.list(),
-    queryFn: () => getVendors({ page_size: 1000 }),
+    queryFn: async () =>
+      requireServerSuccess(await getVendors({ page_size: 1000 })),
   })
 
   const vendors = useMemo(
@@ -125,6 +128,9 @@ export function ModelsTable() {
     data: models = [],
     isLoading,
     isFetching,
+    isError,
+    error,
+    refetch,
   } = useQuery({
     queryKey: [
       ...modelsQueryKeys.list({
@@ -209,6 +215,12 @@ export function ModelsTable() {
       value: option.value,
     })),
   ]
+
+  if (isError) {
+    return (
+      <ErrorState description={error?.message} onRetry={() => void refetch()} />
+    )
+  }
 
   return (
     <DataTablePage

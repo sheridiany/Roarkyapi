@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useEffect } from 'react'
+
 import { ErrorPage } from './error-page'
 
 type GeneralErrorProps = {
@@ -33,6 +35,28 @@ function getHttpStatus(error: unknown): number | undefined {
 }
 
 export function GeneralError(props: GeneralErrorProps) {
+  useEffect(() => {
+    if (
+      !(props.error instanceof Error) ||
+      (props.error.name !== 'ChunkLoadError' &&
+        !/^Loading (CSS )?chunk .+ failed\./.test(props.error.message))
+    ) {
+      return
+    }
+
+    // Recover only when the failed route is displayed, never on intent preload.
+    // Keep the marker across reloads so a persistent failure shows this page.
+    try {
+      const key = `tanstack_router_reload:${props.error.message}`
+      if (sessionStorage.getItem(key)) return
+      sessionStorage.setItem(key, '1')
+    } catch {
+      // Without a persistent marker, reloading could loop indefinitely.
+      return
+    }
+    window.location.reload()
+  }, [props.error])
+
   const status = getHttpStatus(props.error)
   const code =
     status && Number.isInteger(status) && status >= 400 && status <= 599
