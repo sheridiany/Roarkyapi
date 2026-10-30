@@ -10,6 +10,13 @@ func GetEndpointTypesByChannelType(channelType int, modelName string) []constant
 	if (strings.HasPrefix(modelName, "grok-imagine") && IsImageGenerationModel(modelName)) || modelName == "gpt-image-2" || strings.HasPrefix(modelName, "gpt-image-2-") || strings.HasPrefix(modelName, "gpt-image-2.5-") {
 		return []constant.EndpointType{constant.EndpointTypeImageGeneration}
 	}
+	// The DeepSeek Search and Fetch routing names serve only their endpoint.
+	switch modelName {
+	case constant.DeepSeekSearchModel:
+		return []constant.EndpointType{constant.EndpointTypeDeepSeekToolsSearch}
+	case constant.DeepSeekFetchModel:
+		return []constant.EndpointType{constant.EndpointTypeDeepSeekToolsFetch}
+	}
 	var endpointTypes []constant.EndpointType
 	switch channelType {
 	case constant.ChannelTypeJina:

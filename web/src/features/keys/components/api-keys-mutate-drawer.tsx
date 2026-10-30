@@ -159,6 +159,9 @@ export function ApiKeysMutateDrawer({
   // Load existing data when updating
   useEffect(() => {
     if (!open) {
+      form.reset(
+        getApiKeyFormDefaultValues(defaultUseAutoGroup && backendHasAuto)
+      )
       setInitializedTarget(null)
       return
     }
@@ -312,7 +315,7 @@ export function ApiKeysMutateDrawer({
 
   const handleSetExpiry = (months: number, days: number, hours: number) => {
     if (months === 0 && days === 0 && hours === 0) {
-      form.setValue('expired_time', undefined)
+      form.setValue('expired_time', null)
       return
     }
 
@@ -338,12 +341,7 @@ export function ApiKeysMutateDrawer({
   return (
     <Dialog
       open={open}
-      onOpenChange={(v) => {
-        onOpenChange(v)
-        if (!v) {
-          form.reset()
-        }
-      }}
+      onOpenChange={onOpenChange}
     >
       <DialogContent className='gateway-key-dialog max-h-[calc(100dvh-2rem)] gap-7 overflow-y-auto p-6 sm:max-w-[480px] sm:p-7'>
         <DialogHeader className='gap-2 pr-6'>
@@ -506,7 +504,7 @@ export function ApiKeysMutateDrawer({
                       <Checkbox
                         checked={!field.value}
                         onCheckedChange={(checked) => {
-                          if (checked) field.onChange(undefined)
+                          if (checked) field.onChange(null)
                           else handleSetExpiry(1, 0, 0)
                         }}
                       />
@@ -515,8 +513,8 @@ export function ApiKeysMutateDrawer({
                     {field.value && (
                       <FormControl>
                         <DateTimePicker
-                          value={field.value}
-                          onChange={field.onChange}
+                          value={field.value ?? undefined}
+                          onChange={(date) => field.onChange(date ?? null)}
                           className='min-w-0'
                         />
                       </FormControl>

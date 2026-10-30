@@ -262,6 +262,21 @@ test('compact create dialog keeps advanced fields collapsed and preserves expiry
   expect(createdPayloads[0]?.remain_quota).toBeGreaterThan(0)
 })
 
+test('re-checking Never expires after picking an expiry submits a non-expiring key', async () => {
+  const createdPayloads: Array<Record<string, unknown>> = []
+  installApiFixtures(createdPayloads)
+  await renderCreateDrawer()
+  changeInput(getControlByLabel('Name'), 'no-expiry')
+  const neverExpires = screen.getByRole('checkbox', { name: 'Never expires' })
+  fireEvent.click(neverExpires)
+  expect(neverExpires).not.toBeChecked()
+  fireEvent.click(neverExpires)
+  expect(neverExpires).toBeChecked()
+  fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+  await waitFor(() => expect(createdPayloads).toHaveLength(1))
+  expect(createdPayloads[0]?.expired_time).toBe(-1)
+})
+
 test('new key form requires a name and shows quota before expiry with unlimited defaults', async () => {
   installApiFixtures([])
   await renderCreateDrawer()

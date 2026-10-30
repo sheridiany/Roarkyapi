@@ -122,7 +122,10 @@ it('shows personal usage for an administrator and reloads the selected period', 
       ([url]) => url === '/api/data/self'
     )
     expect(requests).toHaveLength(2)
-    const params = requests[1][1]?.params
+    const params = requests[1][1]?.params as {
+      start_timestamp: number
+      end_timestamp: number
+    }
     const start = new Date(params.start_timestamp * 1000)
     expect(start.getHours()).toBe(0)
     expect(

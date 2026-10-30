@@ -133,7 +133,7 @@ async function renderList(
         data: {
           success: true,
           data: {
-            items: (config?.params?.p ?? 1) === 1 ? items : [],
+            items: ((config?.params as { p?: number } | undefined)?.p ?? 1) === 1 ? items : [],
             total: options.total ?? items.length,
           },
         },

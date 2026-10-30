@@ -44,3 +44,13 @@ func TestGrokImageCatalogDoesNotAdvertiseChatOrVideo(t *testing.T) {
 	assert.False(t, IsImageGenerationModel("grok-imagine-video"))
 	assert.False(t, IsImageGenerationModel("grok-4.7"))
 }
+
+// /v1/models reports the DeepSeek Search and Fetch routing names with their
+// own endpoint on the channels that relay them; chat models keep their list.
+func TestDeepSeekToolRoutingNamesReportTheirEndpoint(t *testing.T) {
+	for _, channelType := range []int{constant.ChannelTypeDeepSeek, constant.ChannelTypeNewAPI} {
+		assert.Equal(t, []constant.EndpointType{constant.EndpointTypeDeepSeekToolsSearch}, GetEndpointTypesByChannelType(channelType, constant.DeepSeekSearchModel))
+		assert.Equal(t, []constant.EndpointType{constant.EndpointTypeDeepSeekToolsFetch}, GetEndpointTypesByChannelType(channelType, constant.DeepSeekFetchModel))
+	}
+	assert.Equal(t, []constant.EndpointType{constant.EndpointTypeOpenAI}, GetEndpointTypesByChannelType(constant.ChannelTypeDeepSeek, "deepseek-flash"))
+}
