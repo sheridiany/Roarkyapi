@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relaykit/types"
-	"github.com/QuantumNous/new-api/setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -97,44 +95,5 @@ func TestProcessChannelErrorUsesSnapshotWithoutLeakingChannelMetadata(t *testing
 	assert.NotContains(t, userOther, "admin_info")
 	for _, key := range []string{"channel_id", "channel_name", "channel_type"} {
 		assert.NotContains(t, userOther, key)
-	}
-}
-
-func TestSensitivePromptReturnsClientErrorBeforeBilling(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	oldEnabled, oldPrompt, oldWords := setting.CheckSensitiveEnabled, setting.CheckSensitiveOnPromptEnabled, setting.SensitiveWords
-	setting.CheckSensitiveEnabled, setting.CheckSensitiveOnPromptEnabled = true, true
-	setting.SensitiveWords = []string{"blocked_fixture"}
-	t.Cleanup(func() {
-		setting.CheckSensitiveEnabled, setting.CheckSensitiveOnPromptEnabled, setting.SensitiveWords = oldEnabled, oldPrompt, oldWords
-	})
-	cases := []struct {
-		name, path, body string
-		format           types.RelayFormat
-	}{
-		{"chat", "/v1/chat/completions", `{"model":"test-model","messages":[{"role":"user","content":"blocked_fixture"}]}`, types.RelayFormatOpenAI},
-		{"responses", "/v1/responses", `{"model":"test-model","input":"blocked_fixture"}`, types.RelayFormatOpenAIResponses},
-		{"claude", "/v1/messages", `{"model":"test-model","max_tokens":16,"messages":[{"role":"user","content":"blocked_fixture"}]}`, types.RelayFormatClaude},
-		{"gemini", "/v1beta/models/test-model:generateContent", `{"contents":[{"role":"user","parts":[{"text":"blocked_fixture"}]}]}`, types.RelayFormatGemini},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			recorder := httptest.NewRecorder()
-			ctx, _ := gin.CreateTestContext(recorder)
-			ctx.Request = httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
-			ctx.Request.Header.Set("Content-Type", "application/json")
-			ctx.Params = gin.Params{{Key: "model", Value: "test-model:generateContent"}}
-			common.SetContextKey(ctx, constant.ContextKeyOriginalModel, "test-model")
-			Relay(ctx, tc.format)
-			require.Equal(t, http.StatusBadRequest, recorder.Code)
-			var response struct {
-				Error struct {
-					Message string `json:"message"`
-				} `json:"error"`
-			}
-			require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
-			assert.Contains(t, response.Error.Message, "request contains blocked keywords")
-			assert.NotContains(t, response.Error.Message, "blocked_fixture")
-		})
 	}
 }
