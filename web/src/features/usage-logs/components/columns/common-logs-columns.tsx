@@ -73,6 +73,7 @@ import type { LogOtherData } from '../../types'
 import { DetailsDialog } from '../dialogs/details-dialog'
 import { LogCostDisplay } from '../log-cost-display'
 import { ModelBadge } from '../model-badge'
+import { RequestPluginLogMarker } from '../request-plugin-record'
 import { TimingMetricsCell, StreamTpsCell } from '../timing-metrics-cell'
 import { useUsageLogsContext } from '../usage-logs-provider'
 
@@ -622,10 +623,15 @@ export function useCommonLogsColumns(
 
         return (
           <div className='flex w-fit flex-col gap-0.5'>
+            <div>
             <ModelBadge
               modelName={modelInfo.name}
               actualModel={modelInfo.actualModel}
             />
+              {!!parseLogOther(log.other)?.request_plugins?.length && (
+                <RequestPluginLogMarker items={parseLogOther(log.other)!.request_plugins!} />
+              )}
+            </div>
           </div>
         )
       },

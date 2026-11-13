@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useTranslation } from 'react-i18next'
 
-import type { SidebarData } from '@/components/layout/types'
+import type { SidebarBadges, SidebarData } from '@/components/layout/types'
 import {
   Activity,
   Box,
@@ -39,6 +39,7 @@ import {
   Users,
   Wallet,
 } from '@/components/navigation-icons'
+import { Workflow } from 'lucide-react'
 import { ROLE } from '@/lib/roles'
 import { isServicePageVisible } from '@/lib/service-visibility'
 
@@ -48,7 +49,7 @@ import { isServicePageVisible } from '@/lib/service-visibility'
  * These are shown when the URL does not match any nested sidebar view
  * registered in `layout/lib/sidebar-view-registry.ts`.
  */
-export function useSidebarData(): SidebarData {
+export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
   const { t } = useTranslation()
 
   return {
@@ -170,9 +171,15 @@ export function useSidebarData(): SidebarData {
             requiredRole: ROLE.SUPER_ADMIN,
           },
           {
-            title: t('Task Plugins'),
+            title: t('Plugins'),
             url: '/task-plugins',
             icon: PlugZap,
+            requiredRole: ROLE.SUPER_ADMIN,
+          },
+          {
+            title: t('Request processing'),
+            url: '/request-processing',
+            icon: Workflow,
             requiredRole: ROLE.SUPER_ADMIN,
           },
           {
@@ -181,6 +188,8 @@ export function useSidebarData(): SidebarData {
             activeUrls: ['/system-settings'],
             icon: Settings,
             requiredRole: ROLE.SUPER_ADMIN,
+            // Model pricing lives in System Settings.
+            badge: badges.modelPricing,
           },
         ],
       },

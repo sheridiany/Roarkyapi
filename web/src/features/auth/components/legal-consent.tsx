@@ -73,7 +73,7 @@ export function LegalConsent({
               {t('User Agreement')}
             </a>
           )}
-          {hasUserAgreement && hasPrivacyPolicy && <> {t('and')} </>}
+          {hasUserAgreement && hasPrivacyPolicy && ` ${t('and')} `}
           {hasPrivacyPolicy && (
             <a
               href='/privacy-policy'

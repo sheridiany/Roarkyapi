@@ -555,6 +555,7 @@ func createOAuthUser(provider oauth.Provider, oauthUser *oauth.OAuthUser, affili
 	if affiliateCode != "" {
 		inviterId, _ = model.GetUserIdByAffCode(affiliateCode)
 	}
+	user.InviterId = inviterId
 
 	create := func(tx *gorm.DB) error {
 		var err error
